@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+        proto 模块独立 Maven 项目：
+        - 把 proto/ 下所有 .proto 编译成 Java + gRPC stub
+        - mvn install 推到本机 ~/.m2，本地联调用
+        - mvn deploy 推到共享 Nexus,业务工程通过 <dependency> 拉
+
+        ⚠️ 多人共用 Nexus,包坐标必须带 youjianxin 前缀(student-dev-guide §6.5)
+    -->
+
+    <groupId>com.dating.youjianxin.proto</groupId>
+    <artifactId>post-proto</artifactId>
+    <version>0.1.0</version>
+    <packaging>jar</packaging>
+    <name>post-proto</name>
+    <description>post-service gRPC contracts (youjianxin)</description>
+
+    <properties>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <protobuf.version>4.28.3</protobuf.version>
+        <grpc.version>1.68.1</grpc.version>
+        <annotations.api.version>2.1.1</annotations.api.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>${protobuf.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java-util</artifactId>
+            <version>${protobuf.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-stub</artifactId>
+            <version>${grpc.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-protobuf</artifactId>
+            <version>${grpc.version}</version>
+        </dependency>
+        <!-- gRPC stub 用到 @Generated。grpc-java 1.68 生成的 stub 仍引用 javax.annotation,
+             jakarta 包名直到 1.69+ 才迁移完。两个都加,jakarta 给应用代码用,javax 给 stub 用。 -->
+        <dependency>
+            <groupId>jakarta.annotation</groupId>
+            <artifactId>jakarta.annotation-api</artifactId>
+            <version>${annotations.api.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>javax.annotation</groupId>
+            <artifactId>javax.annotation-api</artifactId>
+            <version>1.3.2</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <!-- .proto 源码扁平放在 proto/<domain>/,sourceDirectory 指到模块根 -->
+        <extensions>
+            <extension>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>os-maven-plugin</artifactId>
+                <version>1.7.1</version>
+            </extension>
+        </extensions>
+        <plugins>
+            <plugin>
+                <groupId>org.xolstice.maven.plugins</groupId>
+                <artifactId>protobuf-maven-plugin</artifactId>
+                <version>0.6.1</version>
+                <configuration>
+                    <protocArtifact>
+                        com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
+                    </protocArtifact>
+                    <pluginId>grpc-java</pluginId>
+                    <pluginArtifact>
+                        io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}
+                    </pluginArtifact>
+                    <!-- .proto 放在模块根的子目录(post/ / common/),只显式扫这两个 -->
+                    <protoSourceRoot>${project.basedir}</protoSourceRoot>
+                    <includes>
+                        <include>post/**/*.proto</include>
+                        <include>common/**/*.proto</include>
+                    </includes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>compile</goal>
+                            <goal>compile-custom</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <!--
+        发布到共享 Nexus(student-dev-guide §6.5 / dev-onboarding §8.1):
+        - SNAPSHOT 推 maven-snapshots, release 推 maven-releases
+        - 账号配在 ~/.m2/settings.xml 的 server id=nexus,不入仓
+    -->
+    <distributionManagement>
+        <snapshotRepository>
+            <id>nexus</id>
+            <url>https://nexus.jianjiange.site/repository/maven-snapshots/</url>
+        </snapshotRepository>
+        <repository>
+            <id>nexus</id>
+            <url>https://nexus.jianjiange.site/repository/maven-releases/</url>
+        </repository>
+    </distributionManagement>
+</project>

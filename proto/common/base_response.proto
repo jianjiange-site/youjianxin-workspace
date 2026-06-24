@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package com.dating.common;
+
+option java_package = "com.dating.common.proto";
+option java_multiple_files = true;
+option java_outer_classname = "BaseResponseProto";
+
+// 统一返回包装。
+// gRPC status code 一律 OK,业务错误码用 BaseResponse.code 区分。
+// design §8.1: 业务异常由 GrpcExceptionInterceptor 兜底转 BaseResponse(code != 0)。
+message BaseResponse {
+  // 业务错误码。0 = OK,4xxx = 业务错误,5xxx = 系统错误。
+  int32 code = 1;
+
+  // 错误描述(成功时为空)。
+  string message = 2;
+
+  // 扩展字段,可选透传上下文(如 traceId)。
+  map<string, string> extra = 3;
+}
+
+// 游标分页通用响应字段。
+// items 由各 RPC 自己的 message 承载,这里只承载分页元数据。
+message Pagination {
+  // 下一页游标。空字符串表示已经到末尾。
+  string next_cursor = 1;
+
+  // 是否还有下一页(冗余字段,客户端可直接判断而不需要再发一次请求)。
+  bool has_more = 2;
+}
