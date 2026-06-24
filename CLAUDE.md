@@ -47,7 +47,7 @@ prod 环境把所有 `-dev` 换成 `-prod` 即可。其他拼音的学员把 `yo
 5. **时间一律 UTC**：DB 列 `TIMESTAMPTZ`、JVM `TZ=UTC`、连接 session `SET TIME ZONE 'UTC'`。
 6. **业务服务不直连 OpenIM / LiveKit**，IM / 音视频能力统一经 `im-service` gRPC。
 7. **`.proto` 走 Nexus 包**：proto 文件放 `proto/`，发布坐标必须带 `youjianxin` 前缀。
-8. **不要新增中间件**（MQ / ES / Mongo / ZK 等）未经评审。
+8. **不要新增中间件**（ES / Mongo / ZK 等)未经评审。RocketMQ 已纳入基础组件清单,可直接使用。
 
 ## 技术栈
 
@@ -56,6 +56,7 @@ prod 环境把所有 `-dev` 换成 `-prod` 即可。其他拼音的学员把 `yo
 - Redis 7 单实例（必带 TTL + 学员前缀）
 - MinIO（S3 兼容，统一经 `dating-common` 的 `ObjectStorage` 接口）
 - Nacos 2.4（Config + Discovery 同 namespace）
+- RocketMQ 5.3.1（异步事件 / 写扩散 / 解耦,公网客户端必带 AK/SK,见 `dev-onboarding §6`）
 - gRPC 1.68.1 + Protobuf 4.28.3
 - Python ≥ 3.13（ai-chat 部分）
 

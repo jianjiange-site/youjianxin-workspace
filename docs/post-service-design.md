@@ -106,7 +106,7 @@ UGC 内容服务,管三件事:
 | Proto 依赖 | Nexus `com.dating.<name>.proto:post-proto:0.1.0` | 同版本号只能发一次 |
 | 序列化 | `protobuf-java-util` | REST 出参直接序列化 proto message |
 
-> ⚠️ 本服务经评审引入 RocketMQ,**仅限 fanout 场景**(见 §10.2.2)。其他清单外中间件(ES / Mongo / ZK 等)仍需在 PR 里说明并被评审。
+> ⚠️ RocketMQ 已是基础组件清单成员,本服务用法**仅限 fanout 场景**(见 §10.2.2),其他场景(计数刷盘等)仍走 Redis。清单外的中间件(ES / Mongo / ZK 等)仍需 PR 评审。
 
 ---
 
@@ -1271,7 +1271,7 @@ public class UserClient {
 | 2 | 跨服务直连别人库 / Redis / 桶 | 好友 / 性别走 `UserClient` gRPC;workspace 共享桶但**只写自己的 `post-image/` 前缀,不读别的服务的 key 前缀** |
 | 3 | 服务间 HTTP 互调 | post-service 与 user-service 全 gRPC,`discovery:///user-service` 寻址 |
 | 4 | 凭据进 git | `application*.yml` 全部 `${ENV}` 占位;真值进 Nacos(workspace `nacos/post-service-dev.yaml` 是共享 dev 凭据的粘贴模板,允许带真值,见 CLAUDE.md 红线 #1)或本机环境变量;生产凭据仍严禁进 git |
-| 5 | 引入清单外中间件 | PG + Redis + MinIO + **RocketMQ(经评审,仅 fanout 场景,见 §10.2.2;topic/group 带 `youjianxin-dating-dev-` 前缀)**;其他场景(计数刷盘等)仍走 Redis;ES / Mongo / ZK 等仍禁 |
+| 5 | 引入清单外中间件 | PG + Redis + MinIO + RocketMQ(已纳入清单);本服务 RocketMQ 仅限 fanout 场景(见 §10.2.2;topic/group 带 `youjianxin-dating-dev-` 前缀),计数刷盘等仍走 Redis;ES / Mongo / ZK 等仍禁 |
 | 6 | 自建 WebSocket / 直调 OpenIM | 本期不产生 IM 消息;阶段三推送走 `im-service` |
 | 7 | 生产用公网 IP 访问 PG/Redis/Nacos | 本机 dev 用 `38.76.188.242` 是规范;若部署到生产侧自然切容器名 |
 | 8 | `TIMESTAMP` 或写死 `Asia/Shanghai` | 全 `TIMESTAMPTZ`,Hikari `connection-init-sql: SET TIME ZONE 'UTC'`,容器 `TZ=UTC` |

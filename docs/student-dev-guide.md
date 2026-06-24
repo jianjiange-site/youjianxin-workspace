@@ -79,7 +79,7 @@ dating-server/
 
 ## 2. 技术栈强约束
 
-新服务一律照搬，引入清单**外**的中间件（MQ / ES / Mongo / ZK 等）前必须在 PR 里说明动机并获得 owner 认可。
+新服务一律照搬，引入清单**外**的中间件（ES / Mongo / ZK 等）前必须在 PR 里说明动机并获得 owner 认可（RocketMQ 已纳入清单,直接用）。
 
 | 类别 | 选型 | 关键约束 |
 |---|---|---|
@@ -93,7 +93,7 @@ dating-server/
 | RPC | **gRPC 1.68.1 + Protobuf 4.28.3** | **服务间禁 HTTP 互调**；`.proto` 文件在 workspace 根的 `proto/`，**打包发到共享 Nexus**（`com.dating.<name>.proto:*` / `dating-proto-<name>-*`），业务工程通过 `<dependency>` / `pip install` 拉 |
 | 内部包仓库 | **Sonatype Nexus 3** | `nexus.jianjiange.site`，三协议（Maven / npm / PyPI） |
 | IM / 音视频 | **OpenIM + LiveKit** | 业务服务统一经 `im-service` gRPC，**禁自建 WebSocket 长连** |
-| MQ（教学环境可用） | **RocketMQ 5.3.1** | 部署在 38 教学机；业务侧引入前需评审 |
+| MQ | **RocketMQ 5.3.1** | 部署在 38 教学机,已纳入基础组件清单,可直接用 |
 
 ---
 
@@ -876,7 +876,7 @@ git push origin <your>/<branch>
 | 2 | 跨服务直连别人家的库表 / Redis key / 对象桶 |
 | 3 | 服务间用 HTTP / FeignClient / RestTemplate 互调代替 gRPC |
 | 4 | 真实密码 / token / AppKey / 私钥进 git |
-| 5 | 引入清单外的中间件（MQ / ES / Mongo / ZK 等）未走评审 |
+| 5 | 引入清单外的中间件（ES / Mongo / ZK 等)未走评审 |
 | 6 | 业务服务自建 WebSocket 长连，或绕开 `im-service` 直接调 OpenIM REST / 签 LiveKit Token / 持 OpenIM admin secret |
 | 7 | 生产环境服务代码通过公网 IP 访问 PG / Redis / Nacos（必须用容器名 `prod-postgres:5432` 等） |
 | 8 | DB 列用 `TIMESTAMP`（无时区）或代码 / SQL 里写死 `Asia/Shanghai` |
