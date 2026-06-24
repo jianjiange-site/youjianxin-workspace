@@ -1,0 +1,53 @@
+# dev profile:连远端共享基建(38.76.188.242)
+# 真值全部 ${ENV} 占位,密码进 IDE Run Configuration / .env 不进 git(红线 4)
+# 共享前缀按本仓库统一约定:youjianxin
+
+spring:
+  datasource:
+    url: jdbc:postgresql://38.76.188.242:5433/dating_dev_youjianxin?stringtype=unspecified
+    username: ${PG_USERNAME:jianjian_test}
+    password: ${PG_PASSWORD}
+
+  data:
+    redis:
+      host: ${REDIS_HOST:38.76.188.242}
+      port: ${REDIS_PORT:6380}
+      password: ${REDIS_PASSWORD}
+      database: ${REDIS_DATABASE:1}
+
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:38.76.188.242:8848}
+        namespace: ${NACOS_NAMESPACE:dev-youjianxin}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD}
+        # 服务 discovery 元数据
+        metadata:
+          grpc-port: 9090
+      config:
+        server-addr: ${NACOS_ADDR:38.76.188.242:8848}
+        namespace: ${NACOS_NAMESPACE:dev-youjianxin}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD}
+        file-extension: yaml
+
+# 对象存储(dating-common ObjectStorage 接口),本服务只写 post-image/ 前缀
+dating:
+  object-storage:
+    provider: s3
+    endpoint: ${MINIO_ENDPOINT:https://minio-api.jianjiange.site}
+    region: us-east-1
+    access-key: ${MINIO_ACCESS_KEY}
+    secret-key: ${MINIO_SECRET_KEY}
+    # MinIO 强制 path-style,否则报 SignatureDoesNotMatch
+    path-style-access: true
+    bucket: ${MINIO_BUCKET:dating-youjianxin}
+
+# 日志一律 stdout(Loki 抓取,student-dev-guide §9.2)
+logging:
+  level:
+    root: INFO
+    com.dating.post: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX,UTC} %-5level [%X{traceId:-},%X{userId:-}] %logger{36} - %msg%n"

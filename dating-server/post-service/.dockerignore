@@ -1,0 +1,10 @@
+target/
+.idea/
+.vscode/
+*.iml
+.DS_Store
+.git/
+.gitignore
+deploy/.env.deploy
+deploy/.env.deploy.local
+README.md
