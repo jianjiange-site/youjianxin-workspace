@@ -27,7 +27,7 @@
 
 | # | 条目 |
 |---|---|
-| 1 | **真实密码 / AK SK / Token 一律不进 git**。先填占位、跑通后挪到 Nacos / `.env`。|
+| 1 | **生产密码 / AK SK / Token 一律不进 git**。**学员共享 dev 凭据**(`38.76.188.242`)可写入 workspace `nacos/<service>-<env>.yaml` 模板 + `docs/dev-onboarding.md`(方便复制粘贴到 Nacos);业务代码 / `application*.yml` / `.env*` 仍走 `${VAR}` 占位。|
 | 2 | **持久层禁多表 JOIN**，一张 Mapper 只查一张表，跨表在 service 层多次单表查 + 内存拼装。|
 | 3 | **服务间禁 HTTP 互调**，只能 gRPC；要对外（App / H5 / 第三方）才走 REST。|
 | 4 | **跨服务禁直连别人家的库 / Redis key / 对象桶**，要数据就调对方 gRPC。|

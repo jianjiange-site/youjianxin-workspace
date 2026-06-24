@@ -30,7 +30,7 @@
 
 来自 `student-dev-guide §10 红线`，写代码前先对一遍：
 
-1. 真实密码 / AK SK / Token **绝不进 git**，先填占位跑通，再挪到 Nacos / 环境变量。
+1. **生产环境**密码 / AK SK / Token **绝不进 git**。学员**共享 dev 凭据**(`38.76.188.242` 那套)为方便快速上手,允许写入 workspace `nacos/<service>-<env>.yaml` 配置模板和 `docs/dev-onboarding.md` 速查表;**业务代码 / `application*.yml` / `.env*` 等运行时配置仍走 `${ENV}` 占位**,真值放 Nacos 或环境变量。
 2. 持久层 **禁多表 JOIN**，跨表在 service 层多次单表查 + 内存拼装。
 3. 服务间 **禁 HTTP 互调**，只用 gRPC；REST 仅对外（App / H5 / 第三方）。
 4. 跨服务 **禁直连别人家的 DB / Redis key / 对象桶**，要数据就调对方 gRPC。
