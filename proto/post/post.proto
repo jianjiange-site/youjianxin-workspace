@@ -1,0 +1,191 @@
+syntax = "proto3";
+
+package com.dating.post;
+
+import "common/base_response.proto";
+
+option java_package = "com.dating.post.proto";
+option java_multiple_files = true;
+option java_outer_classname = "PostServiceProto";
+
+// =============================================================================
+// post-service gRPC 接口契约
+//
+// 规则:
+// 1. 一律业务主键 post_id / comment_id,**绝不暴露**内部自增 id(红线 12)。
+// 2. 操作人 user_id 由 mobile-gateway 解 JWT 后塞 Metadata "x-user-id" 透传,
+//    **不**作为业务字段塞 request(除非语义本身是"查谁的数据"如 ListUserPosts)。
+// 3. gRPC status code 一律 OK,业务错误用 base.code 区分(见 base_response.proto)。
+// =============================================================================
+
+service PostService {
+  // 发布帖子。content 必填、≤ 1024;image_keys 可空、≤ 9。
+  rpc CreatePost(CreatePostRequest) returns (CreatePostResponse);
+
+  // 帖子详情。返回完整内容 + 图片 + 实时点赞/评论计数(DB 基准 + Redis 增量)。
+  rpc GetPostDetail(GetPostDetailRequest) returns (GetPostDetailResponse);
+
+  // 「TA 发的帖」列表,游标分页(雪花 ID 单调递增,作为游标即可)。
+  rpc ListUserPosts(ListUserPostsRequest) returns (ListUserPostsResponse);
+
+  // 删除帖子(逻辑删除)。仅作者本人可删。
+  rpc DeletePost(DeletePostRequest) returns (DeletePostResponse);
+
+  // 点赞 / 取消点赞。幂等。
+  rpc ActionLike(ActionLikeRequest) returns (ActionLikeResponse);
+
+  // 发评论(初版仅支持一级评论,楼中楼字段已预留)。
+  rpc CreateComment(CreateCommentRequest) returns (CreateCommentResponse);
+
+  // 评论列表(一级评论,即 root_id=0),游标按 comment_id 倒序。
+  rpc ListComments(ListCommentsRequest) returns (ListCommentsResponse);
+
+  // 删评论。仅作者本人可删。
+  rpc DeleteComment(DeleteCommentRequest) returns (DeleteCommentResponse);
+
+  // 推荐 Feed(性别分桶池 + 三路混合 + 布隆去重)。
+  // cursor 格式 "recOffset:csOffset",首次传 "0:0"。
+  rpc GetRecommendFeed(GetRecommendFeedRequest) returns (GetRecommendFeedResponse);
+}
+
+// =============================================================================
+// 通用数据结构
+// =============================================================================
+
+// 帖子图片。
+message PostImage {
+  // 排序序号,0..8。
+  int32 sort_order = 1;
+  // 对象存储 key。**只回 key**,不回完整 URL(student-dev-guide §6.3)。
+  string image_key = 2;
+}
+
+// 帖子详情视图。
+message PostInfo {
+  int64 post_id = 1;
+  int64 user_id = 2;
+  string content = 3;
+  repeated PostImage images = 4;
+
+  // 实时点赞数 = post_stats.like_count + Redis 增量。
+  int64 like_count = 5;
+  // 实时评论数 = post_stats.comment_count + Redis 增量。
+  int64 comment_count = 6;
+
+  // 当前调用方是否已点赞(若 Metadata 未提供 x-user-id 则恒为 false)。
+  bool liked = 7;
+
+  // ISO-8601 UTC 时间(全系统统一 UTC)。
+  string created_at = 8;
+}
+
+// 评论视图。初期 root_id / parent_id / reply_to_user_id 恒为 0;
+// 升级楼中楼时数据库零改动,客户端按非零值判断层级即可。
+message CommentInfo {
+  int64 comment_id = 1;
+  int64 post_id = 2;
+  int64 user_id = 3;
+  int64 root_id = 4;
+  int64 parent_id = 5;
+  int64 reply_to_user_id = 6;
+  string content = 7;
+  string created_at = 8;
+}
+
+// =============================================================================
+// RPC 入参 / 出参
+// =============================================================================
+
+message CreatePostRequest {
+  string content = 1;
+  repeated string image_keys = 2;
+}
+message CreatePostResponse {
+  com.dating.common.BaseResponse base = 1;
+  int64 post_id = 2;
+}
+
+message GetPostDetailRequest {
+  int64 post_id = 1;
+}
+message GetPostDetailResponse {
+  com.dating.common.BaseResponse base = 1;
+  PostInfo post = 2;
+}
+
+message ListUserPostsRequest {
+  // 看谁的帖子。
+  int64 user_id = 1;
+  int32 page_size = 2;
+  // 游标 = 上一页最末的 post_id;首次传 0。
+  int64 cursor = 3;
+}
+message ListUserPostsResponse {
+  com.dating.common.BaseResponse base = 1;
+  repeated PostInfo items = 2;
+  com.dating.common.Pagination pagination = 3;
+}
+
+message DeletePostRequest {
+  int64 post_id = 1;
+}
+message DeletePostResponse {
+  com.dating.common.BaseResponse base = 1;
+}
+
+// 点赞操作类型。
+enum LikeAction {
+  LIKE_ACTION_UNSPECIFIED = 0;
+  LIKE = 1;
+  UNLIKE = 2;
+}
+
+message ActionLikeRequest {
+  int64 post_id = 1;
+  LikeAction action = 2;
+}
+message ActionLikeResponse {
+  com.dating.common.BaseResponse base = 1;
+}
+
+message CreateCommentRequest {
+  int64 post_id = 1;
+  string content = 2;
+  // 楼中楼预留(初期传 0)。
+  int64 root_id = 3;
+  int64 parent_id = 4;
+}
+message CreateCommentResponse {
+  com.dating.common.BaseResponse base = 1;
+  int64 comment_id = 2;
+}
+
+message ListCommentsRequest {
+  int64 post_id = 1;
+  int32 page_size = 2;
+  // 游标 = 上一页最末的 comment_id;首次传 0。
+  int64 cursor = 3;
+}
+message ListCommentsResponse {
+  com.dating.common.BaseResponse base = 1;
+  repeated CommentInfo items = 2;
+  com.dating.common.Pagination pagination = 3;
+}
+
+message DeleteCommentRequest {
+  int64 comment_id = 1;
+}
+message DeleteCommentResponse {
+  com.dating.common.BaseResponse base = 1;
+}
+
+message GetRecommendFeedRequest {
+  int32 page_size = 1;
+  // 复合游标 "recOffset:csOffset",首次传 "0:0" 或空串。
+  string cursor = 2;
+}
+message GetRecommendFeedResponse {
+  com.dating.common.BaseResponse base = 1;
+  repeated PostInfo items = 2;
+  com.dating.common.Pagination pagination = 3;
+}

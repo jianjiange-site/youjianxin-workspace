@@ -1,0 +1,12 @@
+target/
+*.iml
+.idea/
+.vscode/
+.DS_Store
+.env
+.env.*
+!.env.*.example
+*.local.yml
+application-local.yml
+deploy/.env.deploy
+deploy/.env.deploy.local

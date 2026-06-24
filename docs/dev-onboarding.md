@@ -612,7 +612,7 @@ services:
 
 ## 9. 红线（必看）
 
-1. **真实密码 / key 不许 commit 进任何业务 git 仓库**。先填着跑通，跑通后挪到 Nacos 或本机环境变量 / 不入仓的 profile 里。
+1. **生产密码 / key 不许 commit 进任何业务 git 仓库**。**学员共享 dev 凭据**(本文档列出的 `38.76.188.242` 这套)为方便学员快速上手,允许写入 workspace 仓库的 `nacos/<service>-<env>.yaml` 配置模板和本文档;**业务代码 / `application*.yml` / `.env*` 仍走 `${ENV}` 占位**,真值放 Nacos 或本机环境变量。
 2. 时间统一 **UTC**，别写死本地时区。
 3. 持久层**不写多表 JOIN**；**不读别的服务的库**，跨服务走 gRPC。
 4. 这是**共享开发环境**，按 §2.3 / §3.3 / §4.2 / §5.3 / §6.5 / §7.6 / §8.1 各用各的库 / db / namespace / bucket / topic / userID / proto 包前缀，别覆盖别人的数据。

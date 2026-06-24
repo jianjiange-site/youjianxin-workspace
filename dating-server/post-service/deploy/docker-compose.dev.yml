@@ -1,0 +1,39 @@
+# 本机 dev 部署:单 post-service 容器,挂外部网络 dating-app(student-dev-guide §9.1)
+# 中间件全部走远端共享(38.76.188.242 / minio-api.jianjiange.site),容器内代码不变。
+# 启动前:
+#   docker network create dating-app    # 一次即可
+#   cp deploy/.env.deploy.example deploy/.env.deploy && 填实际密码
+#   docker compose -f deploy/docker-compose.dev.yml up -d --build
+
+name: youjianxin-dating-dev
+
+networks:
+  default:
+    external: true
+    name: dating-app
+
+services:
+  post-service:
+    container_name: youjianxin-dating-dev-post-service
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: youjianxin-dating-dev-post-service:dev
+    restart: unless-stopped
+    env_file:
+      - .env.deploy
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      TZ: UTC
+      # 多实例部署时每个实例必须不同;单实例随便填 1
+      SNOWFLAKE_WORKER_ID: ${SNOWFLAKE_WORKER_ID:-1}
+      REDIS_KEY_PREFIX: youjianxin-dating-dev
+    ports:
+      - "8080:8080"   # actuator
+      - "9090:9090"   # gRPC
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dating.post.mapper.PostLikeMapper">
+
+    <!--
+        点赞 / 取消的幂等 upsert(design §9.3):
+        - ON CONFLICT (user_id, post_id) 命中已有行 -> UPDATE
+        - WHERE status <> EXCLUDED.status: 状态已是目标值时不更新,返回 0 行,service 直接 return
+        - 状态真变了返回 1 行,service 才去改 Redis 增量
+    -->
+    <update id="upsertStatus">
+        INSERT INTO post_likes (user_id, post_id, status, created_at, updated_at)
+        VALUES (#{userId}, #{postId}, #{status}, NOW(), NOW())
+        ON CONFLICT (user_id, post_id) DO UPDATE
+            SET status     = EXCLUDED.status,
+                updated_at = NOW()
+            WHERE post_likes.status &lt;&gt; EXCLUDED.status
+    </update>
+
+</mapper>

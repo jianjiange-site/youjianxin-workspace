@@ -1,0 +1,20 @@
+# bootstrap.yml:Nacos Config 必须在 Spring Boot 加载本地 application.yml 之前完成
+# (否则 datasource.url 里需要 Nacos 配置的话拉不到)
+# 当前学员阶段所有配置都在本地 yml,这里只做 Nacos 接入声明;
+# 后续把敏感凭据挪进 Nacos 时业务代码无感(student-dev-guide §6.4)。
+
+spring:
+  application:
+    name: post-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  cloud:
+    nacos:
+      config:
+        server-addr: ${NACOS_ADDR:38.76.188.242:8848}
+        namespace: ${NACOS_NAMESPACE:youjianxin-dating-dev}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:}
+        file-extension: yaml
+        # 还没在 Nacos 建对应 dataId 也能正常启动
+        refresh-enabled: true
