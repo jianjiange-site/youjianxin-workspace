@@ -16,6 +16,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 计数底座 + Redis 增量(post-service-design §6.2 写合并核心)。
@@ -127,7 +128,7 @@ public class PostStatManager {
 
     /** 随机取一批待刷盘 post_id(Job 用 SRANDMEMBER 而不 SPOP,避免漏)。 */
     public List<Long> randomUpdated(int batchSize) {
-        List<String> raw = redis.opsForSet().distinctRandomMembers(updatedSetKey(), batchSize);
+        Set<String> raw = redis.opsForSet().distinctRandomMembers(updatedSetKey(), batchSize);
         if (raw == null || raw.isEmpty()) {
             return Collections.emptyList();
         }

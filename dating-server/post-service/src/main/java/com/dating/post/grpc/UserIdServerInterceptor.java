@@ -29,7 +29,7 @@ public class UserIdServerInterceptor implements ServerInterceptor {
     public static final Context.Key<Long> USER_ID_CONTEXT = Context.key("currentUserId");
 
     @Override
-    public <ReqT, RespT> ServerCall.Listener<ReqT, RespT> interceptCall(
+    public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(
             ServerCall<ReqT, RespT> call,
             Metadata headers,
             ServerCallHandler<ReqT, RespT> next) {

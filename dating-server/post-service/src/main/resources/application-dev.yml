@@ -44,6 +44,15 @@ dating:
     path-style-access: true
     bucket: ${MINIO_BUCKET:dating-youjianxin}
 
+# RocketMQ(post-service-design §10.2.2,仅 fanout 场景)
+rocketmq:
+  name-server: ${ROCKETMQ_NAMESRV:38.76.188.242:9876}
+  producer:
+    group: dev_youjianxin_post_service_producer
+    send-message-timeout: 2000
+    # Producer 端 retry 由 PostFanoutProducer 自己做(3 次),客户端内置重试关掉避免叠加
+    retry-times-when-send-failed: 0
+
 # 日志一律 stdout(Loki 抓取,student-dev-guide §9.2)
 logging:
   level:

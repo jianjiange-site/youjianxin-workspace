@@ -38,6 +38,7 @@
         <redisson.version>3.36.0</redisson.version>
         <shedlock.version>5.16.0</shedlock.version>
         <caffeine.version>3.1.8</caffeine.version>
+        <rocketmq-spring.version>2.3.4</rocketmq-spring.version>
 
         <spring-cloud-alibaba.version>2023.0.1.2</spring-cloud-alibaba.version>
     </properties>
@@ -175,6 +176,13 @@
             <version>${caffeine.version}</version>
         </dependency>
 
+        <!-- ===== RocketMQ(post-service-design §10.2.2,仅 fanout 场景) ===== -->
+        <dependency>
+            <groupId>org.apache.rocketmq</groupId>
+            <artifactId>rocketmq-spring-boot-starter</artifactId>
+            <version>${rocketmq-spring.version}</version>
+        </dependency>
+
         <!-- ===== Lombok(@Data / @RequiredArgsConstructor 等) ===== -->
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -207,6 +215,19 @@
     <build>
         <finalName>post-service</finalName>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!-- 显式声明 Lombok 注解处理器,避免依赖 spring-boot-starter-parent 默认配置 -->
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

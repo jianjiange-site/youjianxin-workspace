@@ -35,7 +35,7 @@ import java.util.Set;
  * 三路池(详见 design §10.2):
  * <ul>
  *   <li>① 全网热门池(pull / FeedScoreJob 5 分钟重建,Hacker News 热度打分)</li>
- *   <li>② 好友时间线(push / 发帖 @Async 写扩散,纯时间倒序)</li>
+ *   <li>② 好友时间线(push / 发帖经 RocketMQ Consumer 写扩散,纯时间倒序)</li>
  *   <li>③ 冷启动池(发帖时同步 ZADD,纯时间倒序)</li>
  * </ul>
  * 10 条一页位置分配 + 布隆去重 + 同好友频控见 §10.3。

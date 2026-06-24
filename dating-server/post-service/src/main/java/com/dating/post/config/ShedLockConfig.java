@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import javax.sql.DataSource;
 import java.time.ZoneOffset;
+import java.util.TimeZone;
 
 /**
  * ShedLock 配置(design §6.5)。
@@ -28,7 +29,7 @@ public class ShedLockConfig {
         return new JdbcTemplateLockProvider(
                 JdbcTemplateLockProvider.Configuration.builder()
                         .withJdbcTemplate(new JdbcTemplate(dataSource))
-                        .withTimeZone(ZoneOffset.UTC)
+                        .withTimeZone(TimeZone.getTimeZone(ZoneOffset.UTC))
                         .usingDbTime()
                         .build()
         );

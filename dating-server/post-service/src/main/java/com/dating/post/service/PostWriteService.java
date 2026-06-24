@@ -11,6 +11,7 @@ import com.dating.post.entity.PostImage;
 import com.dating.post.exception.BizException;
 import com.dating.post.manager.PostManager;
 import com.dating.post.manager.PostStatManager;
+import com.dating.post.mq.producer.PostFanoutProducer;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +44,7 @@ public class PostWriteService {
 
     private final PostManager postManager;
     private final PostStatManager postStatManager;
-    private final PostFanoutService postFanoutService;
+    private final PostFanoutProducer postFanoutProducer;
     private final SnowflakeIdGenerator idGenerator;
     private final UserClient userClient;
     private final StringRedisTemplate redis;
@@ -83,11 +84,9 @@ public class PostWriteService {
             log.warn("Cold-start ZADD failed, postId={}", postId, e);
         }
 
-        try {
-            postFanoutService.fanoutToFollowers(postId, userId, now);
-        } catch (Exception e) {
-            log.warn("Fanout dispatch failed, postId={}", postId, e);
-        }
+        // 写扩散:syncSend 到 RocketMQ,Producer 内部已做 3 次 retry + 失败兜底,
+        // 这里无需再 try-catch(失败只 log + 指标,不抛)。
+        postFanoutProducer.send(postId, userId, now.toEpochSecond());
 
         log.info("Post created: postId={} userId={} images={}", postId, userId, images.size());
         return postId;

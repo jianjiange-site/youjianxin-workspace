@@ -3,20 +3,19 @@ package com.dating.post;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * post-service 入口(post-service-design §4)。
  * <ul>
  *   <li>{@link EnableScheduling} 启用 @Scheduled(LikeFlushJob / CommentFlushJob / FeedScoreJob)</li>
- *   <li>{@link EnableAsync} 启用 @Async(PostFanoutService.fanoutToFollowers)</li>
  *   <li>{@link MapperScan} 把 mapper 接口注入</li>
  * </ul>
+ * 写扩散走 RocketMQ {@code mq/producer/PostFanoutProducer + mq/consumer/PostFanoutConsumer},
+ * 不再需要 {@code @EnableAsync}(详见 post-service-design §10.2.2)。
  */
 @SpringBootApplication
 @EnableScheduling
-@EnableAsync
 @MapperScan("com.dating.post.mapper")
 public class PostApplication {
 
