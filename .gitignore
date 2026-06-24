@@ -13,6 +13,6 @@ target/
 *.log
 logs/
 
-# Local env
-.env
-.env.local
+# Local env(共享 dev 凭据是放 Nacos 的;本地只用一个 NACOS_PASSWORD)
+.env*
+!.env*.example

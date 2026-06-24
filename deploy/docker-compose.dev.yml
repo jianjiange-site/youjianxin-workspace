@@ -1,8 +1,9 @@
-# 本机 dev 部署:单 post-service 容器,挂外部网络 dating-app(student-dev-guide §9.1)
-# 中间件全部走远端共享(38.76.188.242 / minio-api.jianjiange.site),容器内代码不变。
+# 本机 dev 部署:workspace 根目录唯一 compose,跑本仓库所有学员服务
+# 容器挂外部网络 dating-app(student-dev-guide §9.1);中间件全部走远端共享
+# (38.76.188.242 / minio-api.jianjiange.site),容器内代码无感。
 # 启动前:
 #   docker network create dating-app    # 一次即可
-#   cp deploy/.env.deploy.example deploy/.env.deploy && 填实际密码
+#   cp deploy/.env.deploy.example deploy/.env.deploy && 填 NACOS_PASSWORD
 #   docker compose -f deploy/docker-compose.dev.yml up -d --build
 
 name: youjianxin-dating-dev
@@ -16,7 +17,7 @@ services:
   post-service:
     container_name: youjianxin-dating-dev-post-service
     build:
-      context: ..
+      context: ../dating-server/post-service
       dockerfile: Dockerfile
     image: youjianxin-dating-dev-post-service:dev
     restart: unless-stopped
