@@ -38,7 +38,9 @@ import java.util.List;
 @RocketMQMessageListener(
         topic = "dev_youjianxin_post_fanout_v1",
         consumerGroup = "dev_youjianxin_post_service_fanout",
-        consumeMode = ConsumeMode.CONCURRENTLY
+        consumeMode = ConsumeMode.CONCURRENTLY,
+        accessKey = "${rocketmq.consumer.access-key}",
+        secretKey = "${rocketmq.consumer.secret-key}"
 )
 public class PostFanoutConsumer implements RocketMQListener<FanoutMessage> {
 

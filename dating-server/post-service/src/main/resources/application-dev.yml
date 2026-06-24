@@ -45,13 +45,20 @@ dating:
     bucket: ${MINIO_BUCKET:dating-youjianxin}
 
 # RocketMQ(post-service-design §10.2.2,仅 fanout 场景)
+# 连接信息见 docs/dev-onboarding §6;公网客户端必须带 AK/SK(§6.6),真值进环境变量(红线 4)
 rocketmq:
   name-server: ${ROCKETMQ_NAMESRV:38.76.188.242:9876}
   producer:
     group: dev_youjianxin_post_service_producer
+    access-key: ${ROCKETMQ_AK}
+    secret-key: ${ROCKETMQ_SK}
     send-message-timeout: 2000
     # Producer 端 retry 由 PostFanoutProducer 自己做(3 次),客户端内置重试关掉避免叠加
     retry-times-when-send-failed: 0
+  # Consumer 注解里通过 ${rocketmq.consumer.access-key/secret-key} 占位符引用
+  consumer:
+    access-key: ${ROCKETMQ_AK}
+    secret-key: ${ROCKETMQ_SK}
 
 # 日志一律 stdout(Loki 抓取,student-dev-guide §9.2)
 logging:
