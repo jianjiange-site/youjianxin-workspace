@@ -30,14 +30,14 @@ import java.util.List;
  * 失败模式:
  * <ul>
  *   <li>{@code userClient.getFriendUserIds} 抛 RPC 异常 → 抛出 → RocketMQ 自动重投(给 user-service 喘息时间)</li>
- *   <li>16 次重试仍失败 → 转 DLQ {@code %DLQ%dev_youjianxin_post_service_fanout},人工排查</li>
+ *   <li>16 次重试仍失败 → 转 DLQ {@code %DLQ%youjianxin_dating_post_service_fanout},人工排查</li>
  * </ul>
  */
 @Component
 @RequiredArgsConstructor
 @RocketMQMessageListener(
-        topic = "dev_youjianxin_post_fanout_v1",
-        consumerGroup = "dev_youjianxin_post_service_fanout",
+        topic = "youjianxin_dating_post_fanout_v1",
+        consumerGroup = "youjianxin_dating_post_service_fanout",
         consumeMode = ConsumeMode.CONCURRENTLY,
         accessKey = "${rocketmq.consumer.access-key}",
         secretKey = "${rocketmq.consumer.secret-key}"

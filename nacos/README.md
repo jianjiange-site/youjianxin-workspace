@@ -2,12 +2,17 @@
 
 每个服务一个文件,**直接复制粘贴到 Nacos 控制台**就能跑。
 
+## 命名规范
+
+文件名 = `<spring.application.name>-<profile>.yaml`(Spring 约定的 Data ID 格式)。
+namespace = `<拼音>-dating-<env>`(CLAUDE.md `§个人隔离前缀`),env 区分只在 namespace 这一层显式。
+
 ## 怎么用
 
 1. 浏览器开 [http://38.76.188.242:8848/nacos](http://38.76.188.242:8848/nacos),账号 `nacos` / 密码 `jianjiange`(见 `docs/dev-onboarding.md §0`)。
-2. 左上角切到 namespace **`dev-youjianxin`**(没有就按 `dev-onboarding §4.2` 建一个)。
+2. 左上角切到 namespace **`youjianxin-dating-dev`**(没有就「命名空间 → 新建命名空间」建一个,命名空间名和 ID 都填 `youjianxin-dating-dev`)。
 3. 「配置管理 → 配置列表 → +」,填:
-   - **Data ID**:跟本目录下的文件名**完全一致**(包含 `.yaml` 后缀)。例如 `dating-youjianxin-post-service-dev.yaml`。
+   - **Data ID**:跟本目录下的文件名**完全一致**(包含 `.yaml` 后缀)。例如 `youjianxin-dating-post-service-dev.yaml`。
    - **Group**:`DEFAULT_GROUP`(默认值,不用改)。
    - **配置格式**:`YAML`。
    - **配置内容**:把对应文件的内容**整文件粘进去**(去掉文件最上面的 5 行注释也行,无所谓)。
@@ -15,11 +20,12 @@
 
 ## 现有文件
 
-| 服务 | Data ID | 说明 |
-|---|---|---|
-| post-service | `dating-youjianxin-post-service-dev.yaml` | DB / Redis / MinIO / RocketMQ 完整连接信息 |
+| 服务 | Data ID | namespace | 说明 |
+|---|---|---|---|
+| post-service | `youjianxin-dating-post-service-dev.yaml` | `youjianxin-dating-dev` | DB / Redis / MinIO / RocketMQ 完整连接信息 |
 
 未来加新服务就在本目录下放对应的 `<spring.application.name>-<profile>.yaml`。
+prod 环境用 `<...>-prod.yaml` 走 `youjianxin-dating-prod` namespace,不混在 dev 里。
 
 ## 为什么真值直接进 git
 

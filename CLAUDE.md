@@ -5,19 +5,22 @@
 
 ## 个人隔离前缀
 
-所有共享基建资源都按拼音前缀隔离，本仓库统一用 **`youjianxin`**：
+所有共享基建资源按 **`<拼音>-dating`** 模式隔离学员,本仓库统一用 **`youjianxin-dating`**。**dev/prod 环境隔离只在 Nacos namespace 这一层显式体现**,其他资源通过物理基建分离 env(dev 走 `38.76.188.242`,prod 另一台机),名字不带 env:
 
-| 资源 | 取值 |
-|---|---|
-| PG 库 | `dating-dev-youjianxin` |
-| Redis key 前缀 | `youjianxin:<service>:<domain>:<id>` |
-| Nacos namespace | `dev-youjianxin` |
-| MinIO bucket | `dating-youjianxin` |
-| RocketMQ topic / group | `dev_youjianxin_*` |
-| Proto 包坐标 | `com.dating.youjianxin.proto:*` / `dating-proto-youjianxin-*` |
-| OpenIM userID | `<service>_youjianxin_*` |
+| 资源 | 取值 | 备注 |
+|---|---|---|
+| PG 库 | `youjianxin_dating` | 下划线(PG 标识符习惯) |
+| Redis key 前缀 | `youjianxin-dating:<service>:<domain>:<id>` | |
+| **Nacos namespace** | `youjianxin-dating-dev` / `youjianxin-dating-prod` | **唯一显式带 env 的**;不同 env 用不同 namespace |
+| Nacos Data ID | `<spring.application.name>-<profile>.yaml` | 例 `youjianxin-dating-post-service-dev.yaml` |
+| MinIO bucket | `youjianxin-dating` | |
+| RocketMQ topic / group | `youjianxin_dating_*` | 下划线(broker 不允许 dash) |
+| Proto 包坐标 | `com.dating.youjianxin.proto:*` / `dating-proto-youjianxin-*` | **历史包名保留**,已发到 Nexus,改了等于废 |
+| OpenIM userID | `youjianxin_dating_<service>_*` | |
+| Spring `application.name` | `youjianxin-dating-<service>` | env 由 active profile 决定,**不进名字** |
+| docker 容器名 | `youjianxin-dating-<service>-<env>` | |
 
-文档里凡是写 `<name>` / `<yourname>` / `<yourpinyin>` 的地方，都替换成 `youjianxin`。
+文档里凡是写 `<name>` / `<yourname>` / `<yourpinyin>` 的地方,都替换成 `youjianxin`(完整前缀就是 `youjianxin-dating`)。
 
 ## 关联文档（权威，先读这些）
 

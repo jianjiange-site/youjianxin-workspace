@@ -30,8 +30,8 @@ public class PostFanoutProducer {
 
     private static final Logger log = LoggerFactory.getLogger(PostFanoutProducer.class);
 
-    /** 必带 {@code dev_youjianxin_} 前缀(CLAUDE.md 隔离前缀)。 */
-    static final String TOPIC = "dev_youjianxin_post_fanout_v1";
+    /** 必带 {@code youjianxin_dating_} 前缀(CLAUDE.md 隔离前缀)。 */
+    static final String TOPIC = "youjianxin_dating_post_fanout_v1";
 
     private static final int MAX_RETRY = 3;
     private static final long TIMEOUT_MS = 2000L;

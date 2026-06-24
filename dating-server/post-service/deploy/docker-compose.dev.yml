@@ -5,7 +5,7 @@
 #   cp deploy/.env.deploy.example deploy/.env.deploy && 填实际密码
 #   docker compose -f deploy/docker-compose.dev.yml up -d --build
 
-name: dating-youjianxin
+name: youjianxin-dating
 
 networks:
   default:
@@ -14,11 +14,11 @@ networks:
 
 services:
   post-service:
-    container_name: dating-youjianxin-post-service-dev
+    container_name: youjianxin-dating-post-service-dev
     build:
       context: ..
       dockerfile: Dockerfile
-    image: dating-youjianxin-post-service:dev
+    image: youjianxin-dating-post-service:dev
     restart: unless-stopped
     env_file:
       - .env.deploy
@@ -27,7 +27,7 @@ services:
       TZ: UTC
       # 多实例部署时每个实例必须不同;单实例随便填 1
       SNOWFLAKE_WORKER_ID: ${SNOWFLAKE_WORKER_ID:-1}
-      REDIS_KEY_PREFIX: youjianxin
+      REDIS_KEY_PREFIX: youjianxin-dating
     ports:
       - "8080:8080"   # actuator
       - "9090:9090"   # gRPC

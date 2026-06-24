@@ -5,14 +5,14 @@
 
 spring:
   application:
-    name: dating-youjianxin-post-service
+    name: youjianxin-dating-post-service
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   cloud:
     nacos:
       config:
         server-addr: ${NACOS_ADDR:38.76.188.242:8848}
-        namespace: ${NACOS_NAMESPACE:dev-youjianxin}
+        namespace: ${NACOS_NAMESPACE:youjianxin-dating-dev}
         username: ${NACOS_USERNAME:nacos}
         password: ${NACOS_PASSWORD:}
         file-extension: yaml
