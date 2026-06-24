@@ -1,66 +1,8 @@
-# dev profile:连远端共享基建(38.76.188.242)
-# 真值全部 ${ENV} 占位,密码进 IDE Run Configuration / .env 不进 git(红线 4)
-# 共享前缀按本仓库统一约定:youjianxin
+# dev profile 本地覆盖:
+# 数据库 / Redis / MinIO / RocketMQ 等连接信息**全部从 Nacos 拉取**
+# (Data ID: dating-youjianxin-post-service-dev.yaml,见 workspace 仓库 nacos/ 目录)。
+# 本地只需要 NACOS_PASSWORD 一个环境变量(bootstrap.yml 用)。
 
-spring:
-  datasource:
-    url: jdbc:postgresql://38.76.188.242:5433/dating_dev_youjianxin?stringtype=unspecified
-    username: ${PG_USERNAME:jianjian_test}
-    password: ${PG_PASSWORD}
-
-  data:
-    redis:
-      host: ${REDIS_HOST:38.76.188.242}
-      port: ${REDIS_PORT:6380}
-      password: ${REDIS_PASSWORD}
-      database: ${REDIS_DATABASE:1}
-
-  cloud:
-    nacos:
-      discovery:
-        server-addr: ${NACOS_ADDR:38.76.188.242:8848}
-        namespace: ${NACOS_NAMESPACE:dev-youjianxin}
-        username: ${NACOS_USERNAME:nacos}
-        password: ${NACOS_PASSWORD}
-        # 服务 discovery 元数据
-        metadata:
-          grpc-port: 9090
-      config:
-        server-addr: ${NACOS_ADDR:38.76.188.242:8848}
-        namespace: ${NACOS_NAMESPACE:dev-youjianxin}
-        username: ${NACOS_USERNAME:nacos}
-        password: ${NACOS_PASSWORD}
-        file-extension: yaml
-
-# 对象存储(dating-common ObjectStorage 接口),本服务只写 post-image/ 前缀
-dating:
-  object-storage:
-    provider: s3
-    endpoint: ${MINIO_ENDPOINT:https://minio-api.jianjiange.site}
-    region: us-east-1
-    access-key: ${MINIO_ACCESS_KEY}
-    secret-key: ${MINIO_SECRET_KEY}
-    # MinIO 强制 path-style,否则报 SignatureDoesNotMatch
-    path-style-access: true
-    bucket: ${MINIO_BUCKET:dating-youjianxin}
-
-# RocketMQ(post-service-design §10.2.2,仅 fanout 场景)
-# 连接信息见 docs/dev-onboarding §6;公网客户端必须带 AK/SK(§6.6),真值进环境变量(红线 4)
-rocketmq:
-  name-server: ${ROCKETMQ_NAMESRV:38.76.188.242:9876}
-  producer:
-    group: dev_youjianxin_post_service_producer
-    access-key: ${ROCKETMQ_AK}
-    secret-key: ${ROCKETMQ_SK}
-    send-message-timeout: 2000
-    # Producer 端 retry 由 PostFanoutProducer 自己做(3 次),客户端内置重试关掉避免叠加
-    retry-times-when-send-failed: 0
-  # Consumer 注解里通过 ${rocketmq.consumer.access-key/secret-key} 占位符引用
-  consumer:
-    access-key: ${ROCKETMQ_AK}
-    secret-key: ${ROCKETMQ_SK}
-
-# 日志一律 stdout(Loki 抓取,student-dev-guide §9.2)
 logging:
   level:
     root: INFO
