@@ -4,7 +4,7 @@ server:
 
 spring:
   application:
-    name: youjianxin-dating-post-service
+    name: post-service
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   main:
@@ -63,8 +63,8 @@ grpc:
 # 应用级配置
 app:
   cache:
-    # student-dev-guide §6.2:学员每人按 `<拼音>-dating` 前缀隔离;环境变量可覆盖
-    key-prefix: ${REDIS_KEY_PREFIX:youjianxin-dating}
+    # student-dev-guide §6.2:学员每人按 `<拼音>-dating-<env>` 前缀隔离;环境变量可覆盖
+    key-prefix: ${REDIS_KEY_PREFIX:youjianxin-dating-dev}
   snowflake:
     # 本机单实例固定 1;部署多实例时**每个实例必须不同**
     worker-id: ${SNOWFLAKE_WORKER_ID:1}

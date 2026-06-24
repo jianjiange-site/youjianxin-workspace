@@ -1,6 +1,6 @@
 # dev profile 本地覆盖:
 # 数据库 / Redis / MinIO / RocketMQ 等连接信息**全部从 Nacos 拉取**
-# (Data ID: youjianxin-dating-post-service-dev.yaml,见 workspace 仓库 nacos/ 目录)。
+# (Data ID: post-service.yaml;namespace: youjianxin-dating-dev;见 workspace 仓库 nacos/ 目录)。
 # 本地只需要 NACOS_PASSWORD 一个环境变量(bootstrap.yml 用)。
 
 logging:

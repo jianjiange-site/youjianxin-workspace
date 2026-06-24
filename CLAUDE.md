@@ -5,22 +5,29 @@
 
 ## 个人隔离前缀
 
-所有共享基建资源按 **`<拼音>-dating`** 模式隔离学员,本仓库统一用 **`youjianxin-dating`**。**dev/prod 环境隔离只在 Nacos namespace 这一层显式体现**,其他资源通过物理基建分离 env(dev 走 `38.76.188.242`,prod 另一台机),名字不带 env:
+所有共享基建资源按 **`<拼音>-dating-<env>`** 模式统一隔离,本仓库 dev 环境用 **`youjianxin-dating-dev`**。命名规则:
+
+- **全部 dash 分隔**,不用下划线(包括 RocketMQ topic / PG 库名,带 dash 的 PG 库名 SQL 中需要 `"双引号"` 包围)
+- **物理资源都带 `<pinyin>-dating-<env>`** —— PG / Redis 前缀 / MinIO / RocketMQ / docker 容器名 / OpenIM userID
+- **逻辑标识不带前缀** —— Spring `application.name`、Nacos Data ID 都是纯 `<service>` 名;**学员/env 隔离全靠 Nacos namespace 这一层兜底**
 
 | 资源 | 取值 | 备注 |
 |---|---|---|
-| PG 库 | `youjianxin_dating` | 下划线(PG 标识符习惯) |
-| Redis key 前缀 | `youjianxin-dating:<service>:<domain>:<id>` | |
-| **Nacos namespace** | `youjianxin-dating-dev` / `youjianxin-dating-prod` | **唯一显式带 env 的**;不同 env 用不同 namespace |
-| Nacos Data ID | `<spring.application.name>-<profile>.yaml` | 例 `youjianxin-dating-post-service-dev.yaml` |
-| MinIO bucket | `youjianxin-dating` | |
-| RocketMQ topic / group | `youjianxin_dating_*` | 下划线(broker 不允许 dash) |
-| Proto 包坐标 | `com.dating.youjianxin.proto:*` / `dating-proto-youjianxin-*` | **历史包名保留**,已发到 Nexus,改了等于废 |
-| OpenIM userID | `youjianxin_dating_<service>_*` | |
-| Spring `application.name` | `youjianxin-dating-<service>` | env 由 active profile 决定,**不进名字** |
-| docker 容器名 | `youjianxin-dating-<service>-<env>` | |
+| PG 库 | `youjianxin-dating-dev` | SQL 内带 dash 必须引号:`CREATE DATABASE "youjianxin-dating-dev";` |
+| Redis key 前缀 | `youjianxin-dating-dev:<service>:<domain>:<id>` | |
+| Nacos namespace | `youjianxin-dating-dev` / `youjianxin-dating-prod` | 学员 × env 都靠这层 |
+| Nacos Data ID | `<service>.yaml` 例 `post-service.yaml` | **不带前缀**,namespace 已隔离 |
+| MinIO bucket | `youjianxin-dating-dev` | |
+| RocketMQ topic / group | `youjianxin-dating-dev-*` | 例 `youjianxin-dating-dev-post-fanout-v1` |
+| Spring `application.name` | `<service>` 例 `post-service` | **不带前缀**;服务发现靠 namespace 隔离 |
+| docker 容器 / image | `youjianxin-dating-dev-<service>` | 物理 docker host 共享时防撞 |
+| docker compose 项目名 | `youjianxin-dating-dev` | |
+| OpenIM userID | `youjianxin-dating-dev-<service>-<id>` | |
+| Proto 包坐标 | `com.dating.youjianxin.proto:*` / `dating-proto-youjianxin-*` | **历史包名保留**(已发到 Nexus),不跟随新规范 |
 
-文档里凡是写 `<name>` / `<yourname>` / `<yourpinyin>` 的地方,都替换成 `youjianxin`(完整前缀就是 `youjianxin-dating`)。
+prod 环境把所有 `-dev` 换成 `-prod` 即可。其他拼音的学员把 `youjianxin` 换成自己的拼音。
+
+> ⚠️ `docs/dev-onboarding.md` 里的示例仍用旧版占位 `dating-<yourname>` / `dev_<yourname>_*`,**不要按字面替换**,以本表为准。
 
 ## 关联文档（权威，先读这些）
 

@@ -1,16 +1,16 @@
-# Nacos 配置:post-service dev
+# Nacos 配置:post-service
 #
-# Data ID:    youjianxin-dating-post-service-dev.yaml(必须与本文件名一致)
+# Data ID:    post-service.yaml(= spring.application.name + .yaml)
 # Group:      DEFAULT_GROUP
-# Namespace:  youjianxin-dating-dev
+# Namespace:  youjianxin-dating-dev(学员×env 隔离都靠这层)
 #
 # 用法见 nacos/README.md。本文件包含**共享 dev 凭据真值**
-# (CLAUDE.md 红线 #1 例外条款),生产环境必须改占位。
+# (CLAUDE.md 红线 #1 例外条款),生产环境必须另起 namespace + 改占位。
 
 spring:
   # ---- PostgreSQL(dev-onboarding §2)----
   datasource:
-    url: jdbc:postgresql://38.76.188.242:5433/youjianxin_dating?stringtype=unspecified
+    url: jdbc:postgresql://38.76.188.242:5433/youjianxin-dating-dev?stringtype=unspecified
     username: jianjian_test
     password: MpR5rGjss2Ly6vJFAhaxAwNqVAGVoP7V
 
@@ -31,14 +31,14 @@ dating:
     access-key: admin
     secret-key: GorLDkuOhGyK5c1RXh2gaPooXgtso/MR
     path-style-access: true
-    bucket: youjianxin-dating
+    bucket: youjianxin-dating-dev
 
 # ---- RocketMQ(dev-onboarding §6;仅 fanout 场景,见 post-service-design §10.2.2)----
 # 公网客户端必须带 AK/SK(§6.6),漏了会鉴权失败
 rocketmq:
   name-server: 38.76.188.242:9876
   producer:
-    group: youjianxin_dating_post_service_producer
+    group: youjianxin-dating-dev-post-service-producer
     access-key: rocketmq-student
     secret-key: 5cafa390b8a42c25
     send-message-timeout: 2000
