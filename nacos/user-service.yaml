@@ -1,0 +1,40 @@
+# Nacos 配置:user-service
+#
+# Data ID:    user-service.yaml(= spring.application.name + .yaml)
+# Group:      DEFAULT_GROUP
+# Namespace:  youjianxin-dating-dev
+#
+# 包含**共享 dev 凭据真值**(CLAUDE.md 红线 #1 例外条款),生产环境必须另起 namespace + 改占位。
+# 详细字段含义见 reference 实现 dating-server/user-service/src/main/resources/application.yml 注释。
+
+spring:
+  # ---- PostgreSQL(共用 youjianxin-dating-dev 库,Flyway 历史表 flyway_history_user)----
+  datasource:
+    url: jdbc:postgresql://38.76.188.242:5433/youjianxin-dating-dev?stringtype=unspecified
+    username: jianjian_test
+    password: MpR5rGjss2Ly6vJFAhaxAwNqVAGVoP7V
+
+  # ---- Redis(key 前缀 user:*,默认 db=1,跟 post-service 同 redis 实例)----
+  data:
+    redis:
+      host: 38.76.188.242
+      port: 6380
+      password: sNuP9gZScsj88QbEyTujffOvRCCH9Kv1
+      database: 1
+
+# ---- 对象存储(S3 兼容,workspace 共用 youjianxin-dating-dev bucket)----
+# user-service 写 avatar/ 前缀,跟 post-service 的 post-image/ 前缀互不冲突
+dating:
+  storage:
+    endpoint: https://minio-api.jianjiange.site
+    region: us-east-1
+    access-key: admin
+    secret-key: GorLDkuOhGyK5c1RXh2gaPooXgtso/MR
+    bucket: youjianxin-dating-dev
+    presigned-put-ttl-seconds: 300
+    presigned-get-ttl-seconds: 1800
+    cdn-base-url: ''
+    path-style-access: true
+  bizid:
+    # 1=测试 / 2=生产,影响业务主键 envPrefix。dev 环境用 1
+    env-prefix: 1

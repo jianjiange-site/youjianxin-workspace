@@ -38,3 +38,27 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  user-service:
+    container_name: youjianxin-dating-dev-user-service
+    build:
+      context: ../dating-server/user-service
+      dockerfile: Dockerfile
+    image: youjianxin-dating-dev-user-service:dev
+    restart: unless-stopped
+    env_file:
+      - .env.deploy
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      TZ: UTC
+      # 业务主键 envPrefix(dating-common BizIdGenerator);dev=1
+      BIZID_ENV_PREFIX: 1
+    ports:
+      - "18080:8080"   # actuator(主机端口错开 post-service)
+      - "19090:9090"   # gRPC
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s

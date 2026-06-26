@@ -1,0 +1,145 @@
+server:
+  port: 8080
+  shutdown: graceful
+
+spring:
+  application:
+    name: user-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  threads:
+    # JDK 21 Loom:Tomcat / @Async / JDBC 阻塞自动 unmount，承载高并发 IO 等待
+    virtual:
+      enabled: true
+
+  # Nacos 配置中心：现代写法用 spring.config.import 而非 bootstrap.yml
+  # optional: 前缀表示 nacos 不可达时不阻塞启动（local 开发友好）
+  config:
+    import:
+      - optional:nacos:${spring.application.name}.yaml
+      - optional:nacos:${spring.application.name}-${spring.profiles.active}.yaml
+
+  cloud:
+    nacos:
+      server-addr: ${NACOS_ADDR:38.76.188.242:8848}
+      username: ${NACOS_USER:nacos}
+      password: ${NACOS_PASSWORD:}
+      config:
+        namespace: ${NACOS_NAMESPACE:youjianxin-dating-dev}
+        group: DEFAULT_GROUP
+        file-extension: yaml
+        refresh-enabled: true
+      discovery:
+        namespace: ${NACOS_NAMESPACE:youjianxin-dating-dev}
+        group: DEFAULT_GROUP
+        register-enabled: true
+
+  datasource:
+    # 真实密码绝不入库，全部走 .env.deploy（gitignored）或 Nacos 注入。
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:dating_chat}
+    username: ${DB_USER:dating}
+    password: ${DB_PASSWORD:dating}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 2
+      connection-timeout: 10000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
+    validate-on-migrate: true
+    # 与 payment-service 共用 dating_chat 库,各自走独立 Flyway 历史表避免 V1 撞 checksum
+    table: flyway_history_user
+    # 关掉占位符替换:SQL 注释里允许出现 ${...} 字面量(如 User_${id})
+    placeholder-replacement: false
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3000ms
+      connect-timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+          max-wait: 2000ms
+
+# net.devh grpc-server-spring-boot-starter
+# - port 9090:对外注册到 Nacos 的 gRPC 端口(与 HTTP 8080 独立)
+# - in-process-name:供集成测试用 InProcessChannelBuilder.forName("user-server")
+grpc:
+  server:
+    port: 9090
+    in-process-name: user-server
+
+# 对象存储(S3 兼容,全环境 iDrive e2;dev/test/prod 通过 bucket + access key 隔离),封装在 dating-common 的 ObjectStorage
+# - 真实 endpoint / region / accessKey / secretKey 走 Nacos / 环境变量,不入仓
+# - bucket 一服务一桶 (CLAUDE.md):dating-user(test/dev 可用 dating-user-test / dating-user-dev)
+# - presigned PUT 5min(上传仍走对象存储原站)
+# - cdn-base-url 留空则回退 endpoint;公开类下行不签名,直接拼 <cdn>/<bucket>/<key>
+#
+# 业务主键生成器(dating-common BizIdGenerator)
+# - env-prefix: 1=测试 / 2=生产,由部署侧 BIZID_ENV_PREFIX 注入;本地默认 1
+# - 未配 / 配错(非 1|2)会导致应用启动失败,避免测试/生产 ID 串号
+dating:
+  storage:
+    endpoint:   ${STORAGE_ENDPOINT:https://s3.us-west-2.idrivee2.com}
+    region:     ${STORAGE_REGION:us-west-2}
+    access-key: ${STORAGE_ACCESS_KEY:}
+    secret-key: ${STORAGE_SECRET_KEY:}
+    bucket:     ${STORAGE_BUCKET:dating-user-dev}
+    presigned-put-ttl-seconds: 300
+    presigned-get-ttl-seconds: 1800
+    cdn-base-url: ${STORAGE_CDN_BASE_URL:}
+    path-style-access: true
+  bizid:
+    env-prefix: ${BIZID_ENV_PREFIX:1}
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.dating.user.entity
+  global-config:
+    banner: false
+    db-config:
+      id-type: auto                       # bigserial 由 DB 自增
+      table-underline: true               # 实体驼峰 → 表下划线
+      logic-delete-field: deleted         # @TableLogic 默认字段名
+      logic-not-delete-value: 'false'
+      logic-delete-value: 'true'          # PG BOOLEAN
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
+logging:
+  level:
+    root: INFO
+    com.dating.user: DEBUG
+    com.dating.user.mapper: DEBUG     # MyBatis-Plus SQL 打印
+    org.flywaydb: INFO
