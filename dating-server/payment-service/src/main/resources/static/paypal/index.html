@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PayPal Standard Checkout</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f5f5f5; }
+    .container { background: #fff; border-radius: 12px; padding: 40px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); text-align: center; max-width: 480px; width: 100%; }
+    h2 { margin-top: 0; color: #333; }
+    .product { border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin: 20px 0; }
+    .product h3 { margin: 0 0 8px; }
+    .product .price { font-size: 24px; font-weight: 700; color: #2c3e50; }
+    #paypal-button-container { margin-top: 20px; min-height: 45px; }
+    #result-message { margin-top: 16px; padding: 12px; border-radius: 6px; font-size: 14px; }
+    #result-message.success { background: #d4edda; color: #155724; }
+    #result-message.error { background: #f8d7da; color: #721c24; }
+    .back-link { margin-top: 24px; font-size: 13px; }
+    .back-link a { color: #0070ba; text-decoration: none; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h2>Checkout</h2>
+  <div class="product">
+    <h3>Dating Premium</h3>
+    <p class="price">$6.95</p>
+  </div>
+  <div id="paypal-button-container"></div>
+  <div id="result-message"></div>
+  <div class="back-link"><a href="javascript:window.location.reload()">← Back</a></div>
+</div>
+
+<script src="https://www.paypal.com/sdk/js?client-id=AYFWaLGZ9iGX3uUB_vzgqze3LbQ4KgF1HLuCbeV99VWnB9_m6DRQrDmj1LYc4lQDaK_h7yWVMkpEUOpW&currency=USD&intent=capture"></script>
+<script src="app.js"></script>
+</body>
+</html>

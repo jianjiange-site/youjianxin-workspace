@@ -18,3 +18,9 @@ spring:
         file-extension: yaml
         # 还没在 Nacos 建对应 dataId 也能正常启动
         refresh-enabled: true
+      # 服务发现:缺这块时 discovery 默认连 127.0.0.1:8848 → gRPC 9848 Connection refused
+      discovery:
+        server-addr: ${NACOS_ADDR:38.76.188.242:8848}
+        namespace: ${NACOS_NAMESPACE:youjianxin-dating-dev}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:}

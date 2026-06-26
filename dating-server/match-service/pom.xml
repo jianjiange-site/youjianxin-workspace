@@ -25,14 +25,14 @@
         <spring-cloud-alibaba.version>2023.0.3.2</spring-cloud-alibaba.version>
 
         <!-- Proto SDK 版本（由 proto 仓库发布）。match-proto 为本服务自有契约。 -->
-        <match-proto.version>0.1.0</match-proto.version>
+        <match-proto.version>0.1.1-SNAPSHOT</match-proto.version>
         <!-- 匹配成功后调 im-service SendMessage(type=CUSTOM, metadata.action=...) 表达 3 类副作用;
              0.9.0 起加 ListOnlineUserIds / ListRecentOfflineUsers,DH 模拟计划用 -->
-        <im-proto.version>0.1.0</im-proto.version>
+        <im-proto.version>0.1.1-SNAPSHOT</im-proto.version>
         <!-- 召回(UserRecommendationService) + 拉资料(BatchGetProfile) + DH 同 state 不同 city 覆盖;user-proto 1.0.0 起服务改名 -->
-        <user-proto.version>0.1.0</user-proto.version>
+        <user-proto.version>0.1.1-SNAPSHOT</user-proto.version>
         <!-- 配额(GetSubscription) + SuperHi 扣金币(ConsumeCoins idempotent);payment-proto 0.5.0 引入 -->
-        <payment-proto.version>0.1.0</payment-proto.version>
+        <payment-proto.version>0.1.1-SNAPSHOT</payment-proto.version>
         <!-- gRPC 版本需与 proto 仓库各 *-proto 编译所用版本一致（对齐 user-service / payment-service） -->
         <grpc.version>1.68.1</grpc.version>
 

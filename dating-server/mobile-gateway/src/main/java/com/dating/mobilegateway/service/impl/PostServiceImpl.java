@@ -11,11 +11,13 @@ import com.dating.youjianxin.proto.post.GetPostDetailResponse;
 import com.dating.youjianxin.proto.post.GetRecommendFeedResponse;
 import com.dating.youjianxin.proto.post.ListCommentsResponse;
 import com.dating.youjianxin.proto.post.ListUserPostsResponse;
+import com.dating.youjianxin.proto.post.PostImage;
 import com.dating.youjianxin.proto.post.PostInfo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -39,9 +41,8 @@ public class PostServiceImpl implements PostService {
         GetPostDetailResponse resp = postClient.getPostDetail(userId, postId);
         PostInfo p = resp.getPost();
         return new PostDetailVO(p.getPostId(), p.getUserId(), p.getContent(),
-                p.getImageKeysList(),
-                p.getStat().getLikeCount(), p.getStat().getCommentCount(),
-                p.getIsLiked(), p.getCreatedAt());
+                imageKeys(p), (int) p.getLikeCount(), (int) p.getCommentCount(),
+                p.getLiked(), createdAtSeconds(p.getCreatedAt()));
     }
 
     @Override
@@ -55,7 +56,7 @@ public class PostServiceImpl implements PostService {
     @Override
     public boolean actionLike(long userId, long postId, boolean like) {
         var resp = postClient.actionLike(userId, postId, like);
-        return resp.getSuccess();
+        return isOk(resp.getBase().getCode());
     }
 
     @Override
@@ -67,10 +68,10 @@ public class PostServiceImpl implements PostService {
     @Override
     public List<CommentVO> listComments(long userId, long postId, int pageSize, long cursor) {
         ListCommentsResponse resp = postClient.listComments(userId, postId, pageSize, cursor);
-        List<CommentVO> comments = new ArrayList<>(resp.getCommentsCount());
-        for (var c : resp.getCommentsList()) {
+        List<CommentVO> comments = new ArrayList<>(resp.getItemsCount());
+        for (var c : resp.getItemsList()) {
             comments.add(new CommentVO(c.getCommentId(), c.getPostId(),
-                    c.getUserId(), c.getContent(), c.getCreatedAt()));
+                    c.getUserId(), c.getContent(), createdAtSeconds(c.getCreatedAt())));
         }
         return comments;
     }
@@ -78,7 +79,7 @@ public class PostServiceImpl implements PostService {
     @Override
     public boolean deleteComment(long userId, long commentId) {
         var resp = postClient.deleteComment(userId, commentId);
-        return resp.getSuccess();
+        return isOk(resp.getBase().getCode());
     }
 
     @Override
@@ -90,17 +91,43 @@ public class PostServiceImpl implements PostService {
     @Override
     public boolean deletePost(long userId, long postId) {
         var resp = postClient.deletePost(userId, postId);
-        return resp.getSuccess();
+        return isOk(resp.getBase().getCode());
     }
 
     private static List<PostVO> toPostVOList(List<PostInfo> items) {
         List<PostVO> vos = new ArrayList<>(items.size());
         for (PostInfo p : items) {
             vos.add(new PostVO(p.getPostId(), p.getUserId(), p.getContent(),
-                    p.getImageKeysList(),
-                    p.getStat().getLikeCount(), p.getStat().getCommentCount(),
-                    p.getIsLiked(), p.getCreatedAt()));
+                    imageKeys(p), (int) p.getLikeCount(), (int) p.getCommentCount(),
+                    p.getLiked(), createdAtSeconds(p.getCreatedAt())));
         }
         return vos;
+    }
+
+    // workspace post.proto:PostInfo 用 repeated PostImage images(只回 object key)
+    private static List<String> imageKeys(PostInfo p) {
+        List<String> keys = new ArrayList<>(p.getImagesCount());
+        for (PostImage img : p.getImagesList()) {
+            keys.add(img.getImageKey());
+        }
+        return keys;
+    }
+
+    // workspace post.proto:created_at 是 ISO-8601 UTC 字符串;VO 要 epoch 秒
+    private static long createdAtSeconds(String iso) {
+        if (iso == null || iso.isBlank()) {
+            return 0L;
+        }
+        try {
+            return Instant.parse(iso).getEpochSecond();
+        } catch (Exception e) {
+            log.warn("createdAt parse failed: {}", iso);
+            return 0L;
+        }
+    }
+
+    // BaseResponse.code:0 = OK
+    private static boolean isOk(int code) {
+        return code == 0;
     }
 }

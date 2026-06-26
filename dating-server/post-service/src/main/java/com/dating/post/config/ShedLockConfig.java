@@ -29,7 +29,8 @@ public class ShedLockConfig {
         return new JdbcTemplateLockProvider(
                 JdbcTemplateLockProvider.Configuration.builder()
                         .withJdbcTemplate(new JdbcTemplate(dataSource))
-                        .withTimeZone(TimeZone.getTimeZone(ZoneOffset.UTC))
+                        // usingDbTime() 用 DB 端时钟(PG 已统一 UTC),与 withTimeZone 互斥,
+                        // ShedLock 不允许两者并存,这里以 DB time 为准
                         .usingDbTime()
                         .build()
         );

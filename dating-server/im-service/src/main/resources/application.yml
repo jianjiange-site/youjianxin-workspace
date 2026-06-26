@@ -1,0 +1,124 @@
+server:
+  port: ${IM_SERVICE_PORT:18080}
+
+spring:
+  application:
+    name: im-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  # Nacos 配置中心：现代写法用 spring.config.import 而非 bootstrap.yml
+  # optional: 前缀表示 nacos 不可达时不阻塞启动（local 开发友好）
+  config:
+    import:
+      - optional:nacos:${spring.application.name}.yaml
+      - optional:nacos:${spring.application.name}-${spring.profiles.active}.yaml
+
+  cloud:
+    nacos:
+      server-addr: ${NACOS_ADDR:38.76.188.242:8848}
+      username: ${NACOS_USER:nacos}
+      password: ${NACOS_PASSWORD:}
+      config:
+        namespace: ${NACOS_NAMESPACE:youjianxin-dating-dev}
+        group: DEFAULT_GROUP
+        file-extension: yaml
+        refresh-enabled: true
+      discovery:
+        namespace: ${NACOS_NAMESPACE:youjianxin-dating-dev}
+        group: DEFAULT_GROUP
+        register-enabled: true
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:dating_chat}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  # Redis：在线状态集合(im:presence:online ZSet)。生产用容器名/网络别名,禁止公网 IP
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      database: ${REDIS_DATABASE:0}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3000ms
+
+grpc:
+  server:
+    port: ${IM_GRPC_PORT:18081}
+  client:
+    ai-chat:
+      address: discovery:///ai-chat
+      negotiation-type: plaintext
+    user-service:
+      address: discovery:///user-service
+      negotiation-type: plaintext
+    payment-service:
+      address: discovery:///payment-service
+      negotiation-type: plaintext
+
+# before-send 业务规则:发消息扣金币 + 反导流(支持 Nacos 动态刷新)
+im:
+  message:
+    charge:
+      enabled: ${IM_MESSAGE_CHARGE_ENABLED:true}
+      # 每条消息扣的金币数;默认值仅本地兜底,线上由 Nacos 覆盖
+      coin-cost: ${IM_MESSAGE_COIN_COST:6}
+      reason: im_message_send
+    anti-funnel:
+      enabled: ${IM_MESSAGE_ANTI_FUNNEL_ENABLED:true}
+  # 用户在线状态/时长:在线集合(Redis ZSet) + 在线会话落库(PG user_online_session)
+  presence:
+    sweep:
+      # 孤儿兜底:只上线没下线的会话超阈值后收口 + 移出在线集
+      enabled: ${IM_PRESENCE_SWEEP_ENABLED:true}
+      max-online-hours: ${IM_PRESENCE_MAX_ONLINE_HOURS:26}
+      cron: ${IM_PRESENCE_SWEEP_CRON:0 */30 * * * *}
+  # DH(AI)生成回复期间,以 DH 名义向 BH 下发 OpenIM input-states「正在输入」
+  typing:
+    enabled: ${IM_TYPING_ENABLED:true}
+    # 续发间隔(ms),须 < 客户端兜底超时(5s);AI 生成超时也能续命 typing
+    refresh-interval-ms: ${IM_TYPING_REFRESH_MS:3000}
+    # 拟真:BH 发消息后,DH 先「读」一段随机时间再出 typing(首帧延迟区间,ms)
+    onset-delay-min-ms: ${IM_TYPING_ONSET_MIN_MS:2000}
+    onset-delay-max-ms: ${IM_TYPING_ONSET_MAX_MS:5000}
+
+# OpenIM Server REST API
+openim:
+  api-url: ${OPENIM_API_URL:http://127.0.0.1:10002}
+  admin-user-id: ${OPENIM_ADMIN_USER_ID:imAdmin}
+  admin-secret: ${OPENIM_ADMIN_SECRET:}
+  # 业务通知默认发送方(系统通知账号);留空时回退到 admin-user-id
+  system-notification-user-id: ${OPENIM_SYSTEM_NOTIFICATION_USER_ID:${OPENIM_ADMIN_USER_ID:imAdmin}}
+
+# LiveKit Server
+livekit:
+  api-key: ${LIVEKIT_API_KEY:}
+  secret-key: ${LIVEKIT_SECRET_KEY:}
+  ttl-minutes: 30
+
+# Actuator:/actuator/health 暴露 + Kubernetes 风格 liveness/readiness 探针(对齐 mobile-gateway)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true

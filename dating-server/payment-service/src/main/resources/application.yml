@@ -1,0 +1,73 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: payment-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  # Nacos 配置中心：用 spring.config.import 而非 bootstrap.yml
+  # optional: 前缀 → Nacos 不可达时不阻塞启动（local 开发友好）
+  config:
+    import:
+      - optional:nacos:${spring.application.name}.yaml
+      - optional:nacos:${spring.application.name}-${spring.profiles.active}.yaml
+
+  cloud:
+    nacos:
+      server-addr: ${NACOS_ADDR:38.76.188.242:8848}
+      username: ${NACOS_USER:nacos}
+      password: ${NACOS_PASSWORD:}
+      config:
+        namespace: ${NACOS_NAMESPACE:youjianxin-dating-dev}
+        group: DEFAULT_GROUP
+        file-extension: yaml
+        refresh-enabled: true
+      discovery:
+        namespace: ${NACOS_NAMESPACE:youjianxin-dating-dev}
+        group: DEFAULT_GROUP
+        register-enabled: true
+
+  # === 数据源 ===
+  datasource:
+    url: ${POSTGRES_JDBC_URL:jdbc:postgresql://localhost:5432/dating-chat}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+
+  # === Flyway ===
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
+    table: flyway_history_payment
+
+grpc:
+  server:
+    port: 9090
+    in-process-name: payment-server
+
+# === MyBatis-Plus ===
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: ASSIGN_ID
+      logic-delete-field: deleted
+      logic-not-delete-value: 'false'
+      logic-delete-value: 'true'
+
+# === PayPal ===
+paypal:
+  client-id: ${PAYPAL_CLIENT_ID:}        # 空=禁用 PayPal 通道，不再因缺失而启动崩溃
+  client-secret: ${PAYPAL_CLIENT_SECRET:}
+  environment: ${PAYPAL_ENVIRONMENT:sandbox}
+  webhook-id: ${PAYPAL_WEBHOOK_ID:}

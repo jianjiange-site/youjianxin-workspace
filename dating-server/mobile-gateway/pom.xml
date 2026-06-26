@@ -24,11 +24,11 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-cloud-alibaba.version>2023.0.3.2</spring-cloud-alibaba.version>
 
-        <user-proto.version>0.1.0</user-proto.version>
-        <im-proto.version>0.1.0</im-proto.version>
-        <match-proto.version>0.1.0</match-proto.version>
-        <payment-proto.version>0.1.0</payment-proto.version>
-        <post-proto.version>0.1.0</post-proto.version>
+        <user-proto.version>0.1.1-SNAPSHOT</user-proto.version>
+        <im-proto.version>0.1.1-SNAPSHOT</im-proto.version>
+        <match-proto.version>0.1.1-SNAPSHOT</match-proto.version>
+        <payment-proto.version>0.1.1-SNAPSHOT</payment-proto.version>
+        <post-proto.version>0.1.1-SNAPSHOT</post-proto.version>
         <grpc.version>1.68.1</grpc.version>
 
         <mapstruct.version>1.6.3</mapstruct.version>

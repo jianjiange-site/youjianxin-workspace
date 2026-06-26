@@ -2,7 +2,6 @@ package com.dating.mobilegateway.client;
 
 import com.dating.youjianxin.proto.post.ActionLikeRequest;
 import com.dating.youjianxin.proto.post.ActionLikeResponse;
-import com.dating.youjianxin.proto.post.BaseRequest;
 import com.dating.youjianxin.proto.post.CreateCommentRequest;
 import com.dating.youjianxin.proto.post.CreateCommentResponse;
 import com.dating.youjianxin.proto.post.CreatePostRequest;
@@ -15,6 +14,7 @@ import com.dating.youjianxin.proto.post.GetPostDetailRequest;
 import com.dating.youjianxin.proto.post.GetPostDetailResponse;
 import com.dating.youjianxin.proto.post.GetRecommendFeedRequest;
 import com.dating.youjianxin.proto.post.GetRecommendFeedResponse;
+import com.dating.youjianxin.proto.post.LikeAction;
 import com.dating.youjianxin.proto.post.ListCommentsRequest;
 import com.dating.youjianxin.proto.post.ListCommentsResponse;
 import com.dating.youjianxin.proto.post.ListUserPostsRequest;
@@ -28,6 +28,14 @@ import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
 
+/**
+ * post-service gRPC 客户端。
+ *
+ * <p>调用方 userId 由全局 {@code GrpcClientMetadataInterceptor} 从 RequestContextHolder
+ * 注入 {@code x-user-id} metadata 透传给 post-service,**不**作为业务字段塞 request
+ * (workspace post.proto 约定,见该文件头)。因此这里的 {@code userId} 入参仅用于需要
+ * 显式指定"查谁的数据"的场景(如 listUserPosts 的 targetUserId)。
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -43,7 +51,6 @@ public class PostClient {
         try {
             return stub.withDeadlineAfter(CALL_TIMEOUT_MS, TimeUnit.MILLISECONDS)
                     .createPost(CreatePostRequest.newBuilder()
-                            .setBase(baseRequest(userId))
                             .setContent(content != null ? content : "")
                             .addAllImageKeys(imageKeys)
                             .build());
@@ -56,7 +63,6 @@ public class PostClient {
         try {
             return stub.withDeadlineAfter(CALL_TIMEOUT_MS, TimeUnit.MILLISECONDS)
                     .getPostDetail(GetPostDetailRequest.newBuilder()
-                            .setBase(baseRequest(userId))
                             .setPostId(postId)
                             .build());
         } catch (StatusRuntimeException sre) {
@@ -69,7 +75,6 @@ public class PostClient {
         try {
             return stub.withDeadlineAfter(CALL_TIMEOUT_MS, TimeUnit.MILLISECONDS)
                     .listUserPosts(ListUserPostsRequest.newBuilder()
-                            .setBase(baseRequest(currentUserId))
                             .setUserId(targetUserId)
                             .setPageSize(pageSize)
                             .setCursor(cursor)
@@ -83,11 +88,8 @@ public class PostClient {
         try {
             return stub.withDeadlineAfter(CALL_TIMEOUT_MS, TimeUnit.MILLISECONDS)
                     .actionLike(ActionLikeRequest.newBuilder()
-                            .setBase(baseRequest(userId))
                             .setPostId(postId)
-                            .setAction(like
-                                    ? ActionLikeRequest.LikeAction.LIKE
-                                    : ActionLikeRequest.LikeAction.UNLIKE)
+                            .setAction(like ? LikeAction.LIKE : LikeAction.UNLIKE)
                             .build());
         } catch (StatusRuntimeException sre) {
             throw GrpcStatusMapper.map(sre);
@@ -98,7 +100,6 @@ public class PostClient {
         try {
             return stub.withDeadlineAfter(CALL_TIMEOUT_MS, TimeUnit.MILLISECONDS)
                     .createComment(CreateCommentRequest.newBuilder()
-                            .setBase(baseRequest(userId))
                             .setPostId(postId)
                             .setContent(content)
                             .build());
@@ -112,7 +113,6 @@ public class PostClient {
         try {
             return stub.withDeadlineAfter(CALL_TIMEOUT_MS, TimeUnit.MILLISECONDS)
                     .listComments(ListCommentsRequest.newBuilder()
-                            .setBase(baseRequest(userId))
                             .setPostId(postId)
                             .setPageSize(pageSize)
                             .setCursor(cursor)
@@ -126,7 +126,6 @@ public class PostClient {
         try {
             return stub.withDeadlineAfter(CALL_TIMEOUT_MS, TimeUnit.MILLISECONDS)
                     .deleteComment(DeleteCommentRequest.newBuilder()
-                            .setBase(baseRequest(userId))
                             .setCommentId(commentId)
                             .build());
         } catch (StatusRuntimeException sre) {
@@ -138,7 +137,6 @@ public class PostClient {
         try {
             return stub.withDeadlineAfter(CALL_TIMEOUT_MS, TimeUnit.MILLISECONDS)
                     .getRecommendFeed(GetRecommendFeedRequest.newBuilder()
-                            .setBase(baseRequest(userId))
                             .setPageSize(pageSize)
                             .setCursor(cursor != null ? cursor : "")
                             .build());
@@ -151,17 +149,10 @@ public class PostClient {
         try {
             return stub.withDeadlineAfter(CALL_TIMEOUT_MS, TimeUnit.MILLISECONDS)
                     .deletePost(DeletePostRequest.newBuilder()
-                            .setUserId(userId)
                             .setPostId(postId)
                             .build());
         } catch (StatusRuntimeException sre) {
             throw GrpcStatusMapper.map(sre);
         }
-    }
-
-    private static BaseRequest baseRequest(long userId) {
-        return BaseRequest.newBuilder()
-                .putExtra("user_id", String.valueOf(userId))
-                .build();
     }
 }
