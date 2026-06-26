@@ -1,0 +1,16 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dating-proto-youjianxin-user"
+version = "0.1.0"
+description = "youjianxin user-info-service gRPC Python stubs (UserIdentity/Profile/Recommendation)"
+requires-python = ">=3.10"
+dependencies = [
+    "protobuf>=5.29,<6",
+    "grpcio>=1.68",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["dating_proto_youjianxin_user"]

@@ -189,3 +189,8 @@ message GetRecommendFeedResponse {
   repeated PostInfo items = 2;
   com.dating.common.Pagination pagination = 3;
 }
+
+// 通用请求体通参(reference 命名)。
+message BaseRequest {
+  map<string, string> extra = 1;
+}

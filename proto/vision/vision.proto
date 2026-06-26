@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package vision;
+
+option java_package = "com.dating.youjianxin.proto.vision";
+option java_multiple_files = true;
+option java_outer_classname = "VisionProto";
+
+// 图像 agent：图像理解 / 颜值打分 / 头像分析
+service VisionAgent {
+  // 图像理解：按 prompt 对一张/多张图片做自然语言理解
+  rpc Understand(UnderstandRequest) returns (UnderstandResponse);
+  // 颜值打分：对一张/多张图片打分（多图取平均），返回结构化分数
+  rpc ScoreFace(ScoreFaceRequest) returns (ScoreFaceResponse);
+  // 头像/资料照分析：返回 "描述 | 风格标签" / not_human / anime_human
+  rpc AnalyzeProfilePhoto(AnalyzeProfilePhotoRequest) returns (AnalyzeProfilePhotoResponse);
+}
+
+message UnderstandRequest {
+  repeated string image_urls = 1;  // 可访问的图片 URL（MinIO 预签名 URL）
+  string prompt = 2;               // 理解指令，可空（空则默认描述图片）
+}
+
+message UnderstandResponse {
+  string content = 1;              // 图像理解自然语言结果
+}
+
+message ScoreFaceRequest {
+  repeated string image_urls = 1;  // 可访问的图片 URL
+}
+
+message ScoreFaceResponse {
+  int32 status = 1;                       // 0-100 整体状态
+  int32 appearance = 2;                   // 0-100 外貌吸引力
+  int32 sexual_attractiveness_score = 3;  // 0-100 性吸引力
+}
+
+message AnalyzeProfilePhotoRequest {
+  string image_url = 1;            // 单张资料照 URL
+}
+
+message AnalyzeProfilePhotoResponse {
+  string analysis = 1;             // "描述 | 标签" / "not_human" / "anime_human"
+}
+
+// 业务错误详情，通过 gRPC Status details 返回
+message ErrorDetail {
+  int32 code = 1;                  // 自定义业务错误码
+  string message = 2;              // 中文错误描述
+}

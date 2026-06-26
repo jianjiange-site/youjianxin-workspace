@@ -18,7 +18,7 @@
 
     <groupId>com.dating.youjianxin.proto</groupId>
     <artifactId>youjianxin-proto-parent</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.1-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>youjianxin-proto-parent</name>
     <description>youjianxin workspace proto aggregator</description>
@@ -29,6 +29,8 @@
         <module>im</module>
         <module>match</module>
         <module>payment</module>
+        <module>chat</module>
+        <module>vision</module>
     </modules>
 
     <properties>
@@ -49,11 +51,11 @@
     -->
     <distributionManagement>
         <snapshotRepository>
-            <id>nexus</id>
+            <id>jianjiange-snapshots</id>
             <url>https://nexus.jianjiange.site/repository/maven-snapshots/</url>
         </snapshotRepository>
         <repository>
-            <id>nexus</id>
+            <id>jianjiange-releases</id>
             <url>https://nexus.jianjiange.site/repository/maven-releases/</url>
         </repository>
     </distributionManagement>

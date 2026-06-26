@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+option java_package = "com.dating.youjianxin.proto.chat";
+option java_multiple_files = true;
+option java_outer_classname = "ChatProto";
+
+service ChatAgent {
+  rpc Chat(ChatRequest) returns (ChatResponse);
+}
+
+message ChatRequest {
+  string thread_id = 1;     // 会话ID，复用 LangGraph checkpoint
+  string from_user_id = 2;  // userID(真人userID)
+  string to_user_id = 3;    // Digital Human(userID)
+  string message = 4;       // 用户消息
+}
+
+message ChatResponse {
+  string content = 1;       // AI 完整回复
+}
+
+// 业务错误详情，通过 gRPC Status details 返回
+message ErrorDetail {
+  int32 code = 1;           // 自定义业务错误码
+  string message = 2;       // 中文错误描述
+}

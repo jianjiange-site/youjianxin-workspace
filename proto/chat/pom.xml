@@ -12,9 +12,9 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>im-proto</artifactId>
+    <artifactId>chat-proto</artifactId>
     <packaging>jar</packaging>
-    <description>im-service gRPC contracts (youjianxin)</description>
+    <description>chat-service gRPC contracts (youjianxin)</description>
 
     <dependencies>
         <dependency><groupId>com.google.protobuf</groupId><artifactId>protobuf-java</artifactId><version>${protobuf.version}</version></dependency>
@@ -39,7 +39,7 @@
                     <pluginId>grpc-java</pluginId>
                     <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
                     <protoSourceRoot>${project.basedir}/..</protoSourceRoot>
-                    <includes><include>im/*.proto</include></includes>
+                    <includes><include>chat/*.proto</include></includes>
                 </configuration>
                 <executions>
                     <execution><goals><goal>compile</goal><goal>compile-custom</goal></goals></execution>
