@@ -1,0 +1,3 @@
+com.dating.common.bizid.BizIdAutoConfiguration
+com.dating.common.storage.ObjectStorageAutoConfiguration
+com.dating.common.alert.AlertAutoConfiguration
