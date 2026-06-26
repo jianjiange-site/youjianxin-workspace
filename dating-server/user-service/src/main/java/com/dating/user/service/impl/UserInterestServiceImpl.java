@@ -5,7 +5,7 @@ import com.dating.user.exception.BizException;
 import com.dating.user.exception.ErrorCodes;
 import com.dating.user.manager.UserInterestManager;
 import com.dating.user.service.UserInterestService;
-import com.jianjiange.proto.user.UserInterestInput;
+import com.dating.youjianxin.proto.user.UserInterestInput;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

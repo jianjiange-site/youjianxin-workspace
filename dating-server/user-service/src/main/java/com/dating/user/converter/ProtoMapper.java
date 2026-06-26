@@ -5,12 +5,12 @@ import com.dating.user.constant.RegulationStatusMapping;
 import com.dating.user.constant.UserTypeMapping;
 import com.dating.user.vo.UserInterestVO;
 import com.dating.user.vo.UserProfileVO;
-import com.jianjiange.proto.user.Avatar;
-import com.jianjiange.proto.user.BanReason;
-import com.jianjiange.proto.user.CheckBanResponse;
-import com.jianjiange.proto.user.ResolveOrCreateResponse;
-import com.jianjiange.proto.user.UserInterest;
-import com.jianjiange.proto.user.UserProfile;
+import com.dating.youjianxin.proto.user.Avatar;
+import com.dating.youjianxin.proto.user.BanReason;
+import com.dating.youjianxin.proto.user.CheckBanResponse;
+import com.dating.youjianxin.proto.user.ResolveOrCreateResponse;
+import com.dating.youjianxin.proto.user.UserInterest;
+import com.dating.youjianxin.proto.user.UserProfile;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

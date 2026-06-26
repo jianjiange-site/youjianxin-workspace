@@ -1,6 +1,6 @@
 package com.dating.user.constant;
 
-import com.jianjiange.proto.user.RegulationStatus;
+import com.dating.youjianxin.proto.user.RegulationStatus;
 
 // proto RegulationStatus 与 DB user_info.regulation_status SMALLINT 取值差 1:
 //   DB 0=Active 1=KGroup 2=Banned 3=Admin 4=Collaborator 5=Suspended 6=Reported

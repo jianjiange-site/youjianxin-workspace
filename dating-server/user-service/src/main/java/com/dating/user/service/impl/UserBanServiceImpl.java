@@ -11,7 +11,7 @@ import com.dating.user.manager.UserThirdPartyRegistrationManager;
 import com.dating.user.service.UserBanService;
 import com.dating.user.service.dto.CheckBanResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jianjiange.proto.user.BanReason;
+import com.dating.youjianxin.proto.user.BanReason;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;

@@ -1,6 +1,6 @@
 package com.dating.user.constant;
 
-import com.jianjiange.proto.user.UserType;
+import com.dating.youjianxin.proto.user.UserType;
 
 // proto UserType 与 DB user_info.user_type SMALLINT 取值完全一致 (1=DH, 2=BH);
 // DB 加了 CHECK (user_type IN (1,2)),0/NULL 写不进库。

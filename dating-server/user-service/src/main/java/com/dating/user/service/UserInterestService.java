@@ -1,6 +1,6 @@
 package com.dating.user.service;
 
-import com.jianjiange.proto.user.UserInterestInput;
+import com.dating.youjianxin.proto.user.UserInterestInput;
 
 import java.util.List;
 

@@ -1,8 +1,8 @@
 package com.dating.user.service;
 
 import com.dating.user.vo.UserProfileVO;
-import com.jianjiange.proto.user.UpdateProfileRequest;
-import com.jianjiange.proto.user.UpsertOnboardingRequest;
+import com.dating.youjianxin.proto.user.UpdateProfileRequest;
+import com.dating.youjianxin.proto.user.UpsertOnboardingRequest;
 
 import java.util.Collection;
 import java.util.List;

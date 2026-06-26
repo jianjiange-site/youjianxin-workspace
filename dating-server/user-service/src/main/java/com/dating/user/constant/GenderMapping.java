@@ -1,6 +1,6 @@
 package com.dating.user.constant;
 
-import com.jianjiange.proto.user.Gender;
+import com.dating.youjianxin.proto.user.Gender;
 
 // proto Gender 与 DB user_info.gender SMALLINT 取值完全一致 (0/1/2);
 // 仅做空值兜底,无业务转换。
