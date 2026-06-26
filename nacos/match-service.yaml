@@ -1,0 +1,22 @@
+# Nacos 配置:match-service
+#
+# Data ID:    match-service.yaml(= spring.application.name + .yaml)
+# Group:      DEFAULT_GROUP
+# Namespace:  youjianxin-dating-dev
+#
+# 包含**共享 dev 凭据真值**(CLAUDE.md 红线 #1 例外条款),生产环境必须另起 namespace + 改占位。
+
+spring:
+  # ---- PostgreSQL(共用 youjianxin-dating-dev 库,Flyway 历史表 flyway_history_match)----
+  datasource:
+    url: jdbc:postgresql://38.76.188.242:5433/youjianxin-dating-dev?stringtype=unspecified
+    username: jianjian_test
+    password: MpR5rGjss2Ly6vJFAhaxAwNqVAGVoP7V
+
+  # ---- Redis(共用 youjianxin-dating-dev:* 前缀,db=1)----
+  data:
+    redis:
+      host: 38.76.188.242
+      port: 6380
+      password: sNuP9gZScsj88QbEyTujffOvRCCH9Kv1
+      database: 1

@@ -62,3 +62,25 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  match-service:
+    container_name: youjianxin-dating-dev-match-service
+    build:
+      context: ../dating-server/match-service
+      dockerfile: Dockerfile
+    image: youjianxin-dating-dev-match-service:dev
+    restart: unless-stopped
+    env_file:
+      - .env.deploy
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      TZ: UTC
+    ports:
+      - "28080:8080"   # actuator
+      - "29090:9090"   # gRPC
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s

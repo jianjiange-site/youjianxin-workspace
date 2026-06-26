@@ -26,6 +26,9 @@
     <modules>
         <module>post</module>
         <module>user</module>
+        <module>im</module>
+        <module>match</module>
+        <module>payment</module>
     </modules>
 
     <properties>

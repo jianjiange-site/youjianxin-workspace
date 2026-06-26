@@ -1,0 +1,184 @@
+syntax = "proto3";
+
+option java_package = "com.dating.youjianxin.proto.im";
+option java_multiple_files = true;
+option java_outer_classname = "ImProto";
+
+service ImService {
+  rpc OnRawCallback(RawCallback) returns (OnRawCallbackResponse);
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+  rpc GetImToken(GetImTokenRequest) returns (GetImTokenResponse);
+  rpc RegisterImUser(RegisterImUserRequest) returns (RegisterImUserResponse);
+  rpc GenerateCallToken(GenerateCallTokenRequest) returns (GenerateCallTokenResponse);
+  rpc SendBusinessNotification(SendBusinessNotificationRequest) returns (SendBusinessNotificationResponse);
+  rpc SendMatchSuccess(SendMatchSuccessRequest) returns (SendMatchSuccessResponse);
+
+  // 拉本窗口内「新建立 OpenIM 会话」的真人 userId 列表。
+  // 实现:ZRANGEBYSCORE im:presence:online since_ms until_ms LIMIT 0 limit
+  // (score = online_at,ZADD NX 写入,会话期间不变,因此窗口只覆盖本周期新上线的用户)。
+  // DH 用户无 IM 设备登录,天然不会进 im:presence:online,返回值不含 DH。
+  // 用途:match-service OnlinePlanGenerator(见 dating-server/docs/match-service-prd-tech.md §6.3.1)。
+  rpc ListOnlineUserIds(ListOnlineUserIdsRequest) returns (ListOnlineUserIdsResponse);
+
+  // 拉本窗口内「OpenIM 下线回调已收口」的真人 userId 列表。
+  // 实现:SELECT user_id FROM user_online_session
+  //       WHERE offline_at >= :since AND offline_at < :until AND deleted = false
+  //       ORDER BY offline_at LIMIT :limit
+  // (走 partial index idx_uos_offline_at)。同样天然不含 DH。
+  // 用途:match-service OfflinePlanGenerator(见 §6.3.2)。
+  rpc ListRecentOfflineUsers(ListRecentOfflineUsersRequest) returns (ListRecentOfflineUsersResponse);
+}
+
+// ---- 消息类型 ----
+// 注:消息/回调的内部模型 ImMessage 已下沉到 im-service 业务层(com.dating.im.model),
+// 不再走 proto。proto 只保留对外契约:透传通道 RawCallback + 出站 SendMessage 等。
+// MessageType 留在这里是因为出站 SendMessageRequest.type 仍在用。
+
+enum MessageType {
+  MESSAGE_TYPE_UNKNOWN = 0;
+  TEXT = 1;
+  IMAGE = 2;
+  AUDIO = 3;
+  VIDEO = 4;
+  CUSTOM = 5;
+  FILE = 6;
+}
+
+// ---- 入站 ----
+
+message RawCallback {
+  string provider = 1;   // "tencent_im"
+  bytes payload = 2;     // 原始 JSON body
+}
+
+message OnRawCallbackResponse {
+  // provider-中立契约:不得写入 OpenIM/腾讯等引擎专属码(如 OpenIM nextCode/errCode)。
+  // 引擎专属翻译收敛在各 provider 的 gateway 入口(如 mobile-gateway CallbackController)。
+  bool success = 1;    // 回调是否被 im-service 正确处理(基础设施层面:adaptor 命中、解析无异常)
+  int32 code = 2;      // 业务决策码:0=allow,非0=reject 原因码;rewrite(改写)后续扩展
+  string message = 3;  // 决策文案 / 拒绝原因
+}
+
+// ---- 出站 ----
+
+message SendMessageRequest {
+  string from_user_id = 1;
+  string to_user_id = 2;
+  string content = 3;
+  MessageType type = 4;
+  string conversation_type = 5;
+  string provider = 6;
+  map<string, string> metadata = 7;
+}
+
+message SendMessageResponse {
+  bool success = 1;
+  string message = 2;
+  string message_id = 3;
+}
+
+// ---- Token / 注册 ----
+
+message GetImTokenRequest {
+  string user_id = 1;
+  int32 platform = 2;   // 1=iOS, 2=Android, 3=Web (对应 user.proto Platform 枚举); 0=降级不传 platformID
+}
+
+message GetImTokenResponse {
+  string user_id = 1;
+  string im_token = 2;
+}
+
+message RegisterImUserRequest {
+  string user_id = 1;
+  string nickname = 2;
+  string avatar_url = 3;
+}
+
+message RegisterImUserResponse {
+  bool success = 1;
+  string user_id = 2;
+}
+
+message GenerateCallTokenRequest {
+  string user_id = 1;
+  string peer_id = 2;
+}
+
+message GenerateCallTokenResponse {
+  string token = 1;
+}
+
+// ---- 业务通知 (OpenIM /msg/send_business_notification) ----
+// 服务端发自定义业务通知, 客户端经 OnRecvCustomBusinessMessage 收到。
+// key 为业务类别(string), 客户端据此分发 data; data 约定为 JSON 字符串。
+// 示例 key: "typing" / "match_success"。
+
+message SendBusinessNotificationRequest {
+  string recv_user_id = 1;      // 与 recv_group_id 二选一
+  string recv_group_id = 2;     // 与 recv_user_id 二选一
+  string key = 3;               // 业务类别, 如 "typing" / "match_success"
+  string data = 4;              // 业务数据 (JSON 字符串)
+  string send_user_id = 5;      // 发送方/系统通知 ID; 留空用系统默认账号
+  bool send_msg = 6;            // 是否同时落库为消息, 默认 false
+  int32 reliability_level = 7;  // 1=仅在线推送(默认) 2=保证送达(重连/重登触发)
+}
+
+message SendBusinessNotificationResponse {
+  bool success = 1;
+  string message = 2;        // "ok" 或失败原因
+  string client_msg_id = 3;  // OpenIM clientMsgID, 可用于关联
+  string server_msg_id = 4;  // OpenIM serverMsgID
+  int64 send_time = 5;       // OpenIM sendTime (ms)
+}
+
+// ---- 匹配成功 (swipe 双向匹配) ----
+// 调用方(如 user-service)一次调用, im-service fan-out 给双方各下发一条 match_success
+// 业务通知(瞬时在线信号, reliabilityLevel=2); 客户端据此弹"It's a Match!"。
+// DH(数字人)收件人由调用方用 is_dh 标记, im-service 跳过不给其下发(免去再查一次 user-service)。
+
+message MatchParticipant {
+  string user_id = 1;
+  string nickname = 2;
+  string avatar_key = 3;   // 头像 object key(非 URL); 客户端自拼 URL
+  int32 age = 4;           // 0 = 未填
+  bool is_dh = 5;          // 是否数字人(DH); true 时 im-service 跳过, 不给其下发
+}
+
+message SendMatchSuccessRequest {
+  string match_id = 1;
+  MatchParticipant participant_a = 2;
+  MatchParticipant participant_b = 3;
+  int64 matched_at = 4;    // UTC epoch millis; 0 → im-service 用当前时间
+}
+
+message SendMatchSuccessResponse {
+  bool success = 1;        // 应下发的(非 DH)收件人均成功; 被跳过的 DH 不计失败
+  string message = 2;      // "ok" 或失败原因
+}
+
+// ---- Presence 查询 (DH 模拟计划用) ----
+// match-service OnlinePlan/OfflinePlanGenerator 每分钟 / 每 20 分钟扫一次,
+// 用于挑出"刚上线"或"刚下线"的真人 BH 用户,生成 DH like/visit 互动计划。
+// 信号源由 im-service OpenIM 上下线回调被动维护(im:presence:online ZSet
+// + user_online_session PG),所有跨服务消费走这两个 RPC,禁止直读 Redis / PG。
+
+message ListOnlineUserIdsRequest {
+  int64 since_ms = 1;   // 闭区间下界,epoch ms
+  int64 until_ms = 2;   // 闭区间上界,epoch ms;边界用户在相邻 sweep 中可能重复一次,调用方自行 cooldown 去重
+  int32 limit    = 3;   // 单次返回上限;0 或负数走服务端默认 5000,硬上限 50000
+}
+
+message ListOnlineUserIdsResponse {
+  repeated int64 user_ids = 1;   // 按 online_at(ZSet score)升序;数字业务 userId
+}
+
+message ListRecentOfflineUsersRequest {
+  int64 since_ms = 1;
+  int64 until_ms = 2;   // 同上,闭区间
+  int32 limit    = 3;   // 同上;默认 5000,硬上限 50000
+}
+
+message ListRecentOfflineUsersResponse {
+  repeated int64 user_ids = 1;   // DISTINCT user_id 按 user_id 升序;数字业务 userId
+}

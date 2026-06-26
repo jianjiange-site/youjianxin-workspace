@@ -1,0 +1,93 @@
+# ─── 集成测试专用 application.yml ─────────────────────────────────────────
+# 直连 dev 154.217.241.155 的 PG/Redis(共享基建,docs/infrastructure.md)
+# - 关闭 Nacos config/discovery,避免没注册到 Nacos 时启动卡顿
+# - Flyway 仍 enabled → 启动时把 V4 migration apply 上去(只新增列/表,幂等)
+# - 真实密码不入仓:用环境变量覆盖。本地跑前 export:
+#     export IT_DB_PASSWORD='xxx'        # docs/infrastructure.md §3.1
+#     export IT_REDIS_PASSWORD='xxx'     # docs/infrastructure.md §4.1
+#   (CLAUDE.md 红线 #5;CI 通过 Jenkins credentials 注入)
+
+spring:
+  application:
+    name: match-service-it
+  cloud:
+    nacos:
+      config:
+        enabled: false
+      discovery:
+        enabled: false
+        register-enabled: false
+    discovery:
+      enabled: false
+  config:
+    import: []                              # 不让上面的 nacos:... import 触发解析
+
+  datasource:
+    url: jdbc:postgresql://${IT_DB_HOST:154.217.241.155}:${IT_DB_PORT:5432}/${IT_DB_NAME:dating_chat_dev}
+    username: ${IT_DB_USER:dating}
+    password: ${IT_DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 4
+      minimum-idle: 1
+      connection-timeout: 5000
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
+    validate-on-migrate: true
+    table: flyway_history_match
+
+  data:
+    redis:
+      host: ${IT_REDIS_HOST:154.217.241.155}
+      port: ${IT_REDIS_PORT:6379}
+      password: ${IT_REDIS_PASSWORD}
+      database: ${IT_REDIS_DB:1}              # dev DB 编号 = 1
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 4
+          max-idle: 2
+          min-idle: 1
+
+  # 不启动 ScheduledExecutor 也无所谓;@MockBean 把三个 scheduler 替换掉,@Scheduled 不会触发
+  task:
+    scheduling:
+      pool:
+        size: 1
+
+grpc:
+  # IT 不开服务端、不走 Nacos discovery
+  server:
+    port: -1
+  client:
+    user-service:
+      address: static://localhost:0
+      negotiation-type: plaintext
+    im-service:
+      address: static://localhost:0
+      negotiation-type: plaintext
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.dating.match.entity
+  global-config:
+    banner: false
+    db-config:
+      id-type: auto
+      table-underline: true
+      logic-delete-field: deleted
+      logic-not-delete-value: 'false'
+      logic-delete-value: 'true'
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+
+logging:
+  level:
+    root: WARN
+    com.dating.match: INFO
+    org.flywaydb: INFO

@@ -1,0 +1,310 @@
+syntax = "proto3";
+
+option java_package = "com.dating.youjianxin.proto.match";
+option java_multiple_files = true;
+option java_outer_classname = "MatchProto";
+
+// ======================================================================
+// match-service:MatchService
+// 调用方:mobile-gateway(App 划卡 / SuperHi / 我的匹配 / 配额查询)
+// 详见 dating-server/docs/match-service-prd-tech.md
+//
+// 单文件汇总:
+//   1. 共享枚举(SwipeDirection / CardUserType / MatchSource)
+//   2. MatchService:GetTodayFeed / Swipe / SuperHi / ListMatches / GetQuota
+//
+// 调用方身份(caller user_id)从 gRPC metadata x-user-id 透传,入参不出现;
+// 仅在「操作目标对象」(Swipe target / SuperHi target)时入参才带 target_user_id。
+//
+// 错误处理:不使用 BaseResponse 包装,业务错抛 gRPC Status code,
+// 由 GrpcExceptionAdvice 统一映射 BizException → Status。
+// 与 user.proto 风格一致,与 payment.proto BaseResponse 风格不同(历史原因)。
+// ======================================================================
+
+// =====================================================================
+// 1. 共享枚举
+// 仓库规约:enum 首值一律 _UNSPECIFIED = 0
+// =====================================================================
+
+// 划卡方向
+// SUPER_HI 通过独立的 SuperHi RPC 触发,不进 Swipe RPC
+enum SwipeDirection {
+  SWIPE_DIRECTION_UNSPECIFIED = 0;
+  SWIPE_DIRECTION_LEFT = 1;   // 不喜欢
+  SWIPE_DIRECTION_RIGHT = 2;  // 喜欢
+}
+
+// 卡片对应的用户类型;客户端按此区分展示(如"在线"徽章只对 BH)
+// 与 user.proto UserType 取值映射,但避免跨 proto 强依赖,这里独立 enum
+enum CardUserType {
+  CARD_USER_TYPE_UNSPECIFIED = 0;
+  CARD_USER_TYPE_BH = 1;  // 真人 Bio Human
+  CARD_USER_TYPE_DH = 2;  // 数字人 Digital Human(AI)
+}
+
+// 匹配来源(入口动作维度,与 BH/DH 正交)
+// PRD 9 确认:只有两类入口动作,后续推荐位 / 活动 / 系统配对再扩
+enum MatchSource {
+  MATCH_SOURCE_UNSPECIFIED = 0;
+  // 划卡页常规匹配(BH 互划立即 / DH 延迟 15s-2min 回调,用户视角都是「和你匹配了」)
+  MATCH_SOURCE_SWIPE_MATCH = 1;
+  // 划卡页 SuperHi(订阅赠送或金币购买,无视对方意愿)
+  MATCH_SOURCE_SWIPE_SUPER_HI = 2;
+}
+
+// 注:订阅档位不在本 proto 重复定义,GetQuotaResponse.tier 用 string 透传
+// 取值 "FREE" / "WEEKLY" / "MONTHLY" / "YEARLY",权威定义见 payment.proto SubscriptionTier
+// (避免 enum 全局 namespace 冲突 ── proto3 enum 值是 C++ scoping siblings)
+
+// =====================================================================
+// 2. MatchService
+// =====================================================================
+service MatchService {
+  // 拉当日 feed 下一批
+  // 移动端固定每次 count=5;LPOP 即消费,二次过滤已 swipe 的 target;
+  // LIST 空时实时调 ColdStartService 重建 240 张
+  rpc GetTodayFeed(GetTodayFeedRequest) returns (GetTodayFeedResponse);
+
+  // 提交一次 swipe(LEFT / RIGHT)
+  // RIGHT + 对方 BH 已右划过我 → 立即 match;RIGHT + 对方 DH → 进 15s-2min 延迟队列;
+  // 幂等:同一(caller, target)重复 swipe 直接返回上次结果,不扣配额(防客户端 retry)
+  rpc Swipe(SwipeRequest) returns (SwipeResponse);
+
+  // SuperHi(订阅赠送 1 次/天或扣 100 金币)
+  // BH/DH 均立即 match;扣金币时通过 client_request_id 防重发
+  rpc SuperHi(SuperHiRequest) returns (SuperHiResponse);
+
+  // 我的匹配列表(分页)
+  rpc ListMatches(ListMatchesRequest) returns (ListMatchesResponse);
+
+  // 配额查询(订阅档位 + 当日已用 / 剩余)
+  rpc GetQuota(GetQuotaRequest) returns (GetQuotaResponse);
+
+  // post-service fanout 用:拉某 user 的所有匹配伙伴 user_id
+  // "匹配成功即好友";硬上限 1000(按 matched_at 倒序取最近的)
+  // caller 显式传 user_id,不走 metadata x-user-id ── 调用方是 system call
+  // (post-service async fanout 跨线程,无法继承 grpc metadata)
+  rpc ListFriendUserIds(ListFriendUserIdsRequest) returns (ListFriendUserIdsResponse);
+
+  // "Likes of me" 列表:谁喜欢了我(真人 like 操作归档)
+  // 数据源 like_record 表;RIGHT_SWIPE 和 SUPER_HI 都落,即时 match 也不删
+  // App 客户端拿到列表后自行去重或对已 match 的人打"已匹配" badge
+  // caller 走 metadata x-user-id(与 ListMatches 一致)
+  rpc ListLikesOfMe(ListLikesOfMeRequest) returns (ListLikesOfMeResponse);
+
+  // 记录主页访问:App 端用户进入别人主页时调用,服务端 UPSERT visit_record
+  // 自访问短路;失败 fail-open;同 (viewer,target) 重复调用累加 visit_count
+  // viewer_user_id 走 metadata x-user-id,target_user_id 显式传
+  rpc RecordVisit(RecordVisitRequest) returns (RecordVisitResponse);
+
+  // "Visits of me" 列表:谁访问过我的主页
+  // 数据源 visit_record 表(UPSERT 累加,所以一人一行,visit_count 表示访问次数)
+  // 按 last_visited_at 倒序;cursor = last_visited_at epoch ms
+  // caller 走 metadata x-user-id(与 ListMatches / ListLikesOfMe 一致)
+  rpc ListVisitsOfMe(ListVisitsOfMeRequest) returns (ListVisitsOfMeResponse);
+}
+
+// ─── GetTodayFeed ────────────────────────────────────────────────────
+message GetTodayFeedRequest {
+  // 期望卡片数;App 端固定传 5;> 20 由 service 层报 INVALID_ARGUMENT
+  int32 count = 1;
+}
+
+message GetTodayFeedResponse {
+  repeated Card cards = 1;
+  // true 表示当日 swipe 配额已耗尽,前端展示「今天已经看完啦」
+  bool exhausted = 2;
+}
+
+// 卡片(由 match-service 调 user-service.BatchGetProfile 拼装)
+// 不下发 score / beauty_score / race / city_id 等内部信号,避免泄露
+message Card {
+  int64 target_user_id = 1;
+  CardUserType target_user_type = 2;
+  string nickname = 3;
+  // 0 表示未填写
+  int32 age = 4;
+  // 头像 object_key 列表;客户端自拼 ${cdnBaseUrl}/${bucket}/${key}
+  // 参考 dating-server/CLAUDE.md「VO/gRPC 出参只携带 object_key」红线
+  repeated string photo_keys = 5;
+  string bio = 6;
+  // BH 才有(单位 km);DH 固定 -1 表示无距离概念
+  double distance_km = 7;
+  // 美国州缩写 CA / NY ...;空表示用户未填写位置
+  // BH:取自 user_info.state_code(用户 onboarding 时选)
+  // DH:由 match-service 调 user.RecommendationService.PickDhCitiesForCaller
+  //     按 caller 同州覆盖(同 caller 同 DH 跨次稳定);caller 未填位置则为空
+  string state_code = 8;
+  // 城市名;空表示用户未填写位置
+  // BH:取自 user_info.city
+  // DH:同 PickDhCitiesForCaller,选 caller 同州下另一个城市(!= caller.city)
+  string city = 9;
+}
+
+// ─── Swipe ───────────────────────────────────────────────────────────
+message SwipeRequest {
+  int64 target_user_id = 1;
+  SwipeDirection direction = 2;
+}
+
+message SwipeResponse {
+  // 匹配 id;> 0 即匹配成功(BH 互划场景);LEFT / 单向 RIGHT / DH 延迟均 = 0
+  int64 match_id = 2;
+  reserved 1, 3, 4;  // ex matched / remaining_right_swipes / remaining_cards;App 不再展示,按需走 GetQuota
+  reserved "matched", "remaining_right_swipes", "remaining_cards";
+}
+
+// ─── SuperHi ─────────────────────────────────────────────────────────
+message SuperHiRequest {
+  int64 target_user_id = 1;
+  // 客户端生成的幂等 key(uuid);match-service 透传给 payment.ConsumeCoins.idempotency_key
+  // 同一 client request 内重发不重复扣金币
+  string client_request_id = 2;
+}
+
+message SuperHiResponse {
+  // SuperHi BH/DH 都立即创建 match;0 仅出现在幂等回放场景
+  int64 match_id = 2;
+  // 本次实际扣的金币数;0 表示用了订阅赠送次数,未扣金币
+  int32 coins_used = 4;
+  reserved 1, 3, 5, 6;  // ex matched / remaining_super_hi / remaining_right_swipes / remaining_cards
+  reserved "matched", "remaining_super_hi", "remaining_right_swipes", "remaining_cards";
+}
+
+// ─── ListMatches ─────────────────────────────────────────────────────
+message ListMatchesRequest {
+  // 分页大小;默认 20,最大 100;超过由 service 层报 INVALID_ARGUMENT
+  int32 page_size = 1;
+  // 上一页返回的 next_page_token;首次请求传空字符串
+  string page_token = 2;
+}
+
+message ListMatchesResponse {
+  repeated MatchInfo matches = 1;
+  // 为空表示已到末页
+  string next_page_token = 2;
+}
+
+message MatchInfo {
+  int64 match_id = 1;
+  int64 partner_user_id = 2;
+  string partner_nickname = 3;
+  // 头像 object_key 列表
+  repeated string partner_photo_keys = 4;
+  // 毫秒
+  int64 matched_at_ms = 5;
+  // 入口动作来源
+  MatchSource source = 6;
+}
+
+// ─── GetQuota ────────────────────────────────────────────────────────
+message GetQuotaRequest {}
+
+message GetQuotaResponse {
+  // 订阅档位字符串("FREE" / "WEEKLY" / "MONTHLY" / "YEARLY")
+  // 权威定义见 payment.proto SubscriptionTier;此处用 string 避免 proto enum 全局 namespace 冲突
+  string tier = 1;
+  // 当日上限与已用
+  int32 daily_right_swipe_limit = 2;
+  int32 daily_right_swipe_used  = 3;
+  int32 daily_card_limit        = 4;
+  int32 daily_card_used         = 5;
+  // 订阅赠送的 SuperHi 当日上限与已用(月度/年度=1,其他=0)
+  int32 daily_super_hi_limit    = 6;
+  int32 daily_super_hi_used     = 7;
+  // 用金币购买 SuperHi 的单价(默认 100)
+  int32 super_hi_coin_price     = 8;
+}
+
+// ─── ListFriendUserIds ───────────────────────────────────────────────
+// post-service 在 PostFanoutService 创建帖子后异步调用,把帖子写进每个好友的
+// user:timeline:<friend_uid> ZSet。"好友" 定义 = match 表里所有跟 user_id 匹配过的对方 id。
+message ListFriendUserIdsRequest {
+  // 目标 user;调用方(post-service)在 async fanout 里显式传 post 作者 id
+  // 不走 metadata x-user-id 因为 fanout 是 system call,跨线程
+  int64 user_id = 1;
+}
+
+message ListFriendUserIdsResponse {
+  // 该用户所有匹配伙伴的 user_id;按 matched_at 倒序取最近 1000 个
+  // 上限超出 ── 1000 是 fanout 单次能承受的写量上限,业务上单人 1000+ 好友极少
+  repeated int64 friend_user_ids = 1;
+}
+
+// ─── ListLikesOfMe ───────────────────────────────────────────────────
+// "真人 like 操作的归档"语义:RIGHT_SWIPE / SUPER_HI 都落,即时 match 也不删
+// 与 PRD §6.2 "单向未回应暗恋" 语义偏离 ── 业务侧决策:UI 展示全部,客户端去重/打 badge
+message ListLikesOfMeRequest {
+  // 默认 20,上限 100;超过由 service 层报 INVALID_ARGUMENT(同 ListMatches)
+  int32 page_size = 1;
+  // 上一页返回的 next_page_token(last liked_at epoch ms);首次请求传空串
+  string page_token = 2;
+}
+
+message ListLikesOfMeResponse {
+  repeated LikeInfo likes = 1;
+  // 为空表示已到末页
+  string next_page_token = 2;
+}
+
+message LikeInfo {
+  // like_record.id
+  int64 like_id = 1;
+  // 点赞方 user_id
+  int64 from_user_id = 2;
+  // 入口动作来源
+  LikeSource source = 3;
+  // 毫秒
+  int64 liked_at_ms = 4;
+  // 注:暂不带招呼文案;SuperHiRequest 当前无 content 字段,留待 SuperHi proto 扩展时一起加
+}
+
+// Like 来源(对应 like_record.source 字符串)
+enum LikeSource {
+  LIKE_SOURCE_UNSPECIFIED = 0;
+  // 单向右划(可能后续触发互划 match,也可能一直单向)
+  LIKE_SOURCE_SWIPE_RIGHT = 1;
+  // SuperHi(订阅赠送或扣金币;立即创建 match,但 like_record 仍归档)
+  LIKE_SOURCE_SUPER_HI    = 2;
+}
+
+// ─── RecordVisit ─────────────────────────────────────────────────────
+// "真人访问别人主页"归档:UPSERT 同 (viewer, target) 累加 visit_count
+// App 端进入他人主页时主动调用;不存在配额、不存在幂等需求(重复访问就是要累加)
+message RecordVisitRequest {
+  // 被访问方;viewer 从 metadata x-user-id 取
+  int64 target_user_id = 1;
+}
+
+message RecordVisitResponse {
+  // 自访问短路 / 服务端失败 fail-open 均返 true(信号无意义,仅表示"已尝试")
+  bool ok = 1;
+}
+
+// ─── ListVisitsOfMe ──────────────────────────────────────────────────
+// "谁访问过我的主页"列表;UPSERT 语义 → 一人一行 visit_count 累加
+message ListVisitsOfMeRequest {
+  // 默认 20,上限 100;超过由 service 层报 INVALID_ARGUMENT(同 ListMatches)
+  int32 page_size = 1;
+  // 上一页返回的 next_page_token(last_visited_at epoch ms);首次请求传空串
+  string page_token = 2;
+}
+
+message ListVisitsOfMeResponse {
+  repeated VisitInfo visits = 1;
+  // 为空表示已到末页
+  string next_page_token = 2;
+}
+
+message VisitInfo {
+  // visit_record.id
+  int64 visit_id = 1;
+  // 访问方 user_id
+  int64 from_user_id = 2;
+  // 累计访问次数(UPSERT 累加;UI 可展示"访问了 N 次")
+  int32 visit_count = 3;
+  // 首次访问时间(毫秒);用于"X 天前开始关注我"类文案
+  int64 first_visited_at_ms = 4;
+  // 最近一次访问时间(毫秒);列表按此倒序
+  int64 last_visited_at_ms = 5;
+}
