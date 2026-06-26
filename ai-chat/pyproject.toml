@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "chat-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "chainlit>=2.11.1",
+    "langchain>=1.2.15",
+    "langchain-deepseek>=1.0.1",
+    "langchain-openai>=1.1.14",
+    "langchain-groq>=0.3.0",
+    "langchain-google-genai>=2.0.0",
+    "langsmith>=0.7.32",
+    "python-dotenv>=1.2.2",
+    "langgraph>=0.3.0",
+    "grpcio>=1.60.0",
+    "dating-proto-youjianxin-chat==0.1.0",
+    "dating-proto-youjianxin-vision==0.1.0",
+    "dating-proto-youjianxin-user==0.1.0",
+    "langgraph-checkpoint-postgres>=2.0.0",
+    "psycopg>=3.1.0",
+    "psycopg-binary>=3.1.0",
+    "psycopg-pool>=3.2.0",
+    "grpcio-reflection>=1.60.0",
+    "nacos-sdk-python>=2.0.0,<3.0.0",
+    "httpx>=0.27.0",
+    "tzfpy>=1.3.1",
+    "langchain-tavily>=0.2.18",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["chat_agent", "vision_agent", "core", "server"]
+
+[[tool.uv.index]]
+name = "nexus"
+url = "https://admin:jianjiange@nexus.jianjiange.site/repository/pypi-group/simple/"
+default = true
