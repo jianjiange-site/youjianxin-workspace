@@ -1,0 +1,511 @@
+syntax = "proto3";
+
+option java_package = "com.jianjiange.proto.user";
+option java_multiple_files = true;
+option java_outer_classname = "UserProto";
+
+// =====================================================================
+// user-info-service:UserIdentityService + UserProfileService
+// 调用方:mobile-gateway(登录闭环)、其他业务服务(资料读写)
+// 详见 dating-server/docs/user-info-service-design.md
+//
+// 单文件汇总三块:
+//   1. 共享枚举(Platform / ThirdPartyPlatform / Gender / RegulationStatus / AppName / BanReason)
+//   2. UserIdentityService:ResolveOrCreateByPhone / ResolveOrCreateByThirdParty
+//      / ResolveOrCreateByDevice / CheckBan
+//   3. UserProfileService:GetProfile / BatchGetProfile / UpdateProfile
+//      / UpsertOnboarding / ReplaceUserInterests / PresignAvatarUpload / ConfirmAvatarUpload
+//
+// 调用方身份(caller user_id)从 gRPC metadata x-user-id 透传,入参不出现;
+// 仅在「读他人资料」(GetProfile / BatchGetProfile)和「查封禁」(CheckBan)
+// 这类目标对象明确不是 caller 自己的接口里,入参才带 target_user_id / user_id。
+// =====================================================================
+
+// =====================================================================
+// 1. 共享枚举
+// 仓库规约:enum 首值一律 _UNSPECIFIED / _UNKNOWN = 0
+// 与 DB SMALLINT 取值不一定一一对应,转换由 user-info-service MapStruct converter 负责
+// =====================================================================
+
+// 平台:用于设备登录、第三方登录上下文
+enum Platform {
+  PLATFORM_UNSPECIFIED = 0;
+  PLATFORM_IOS = 1;
+  PLATFORM_ANDROID = 2;
+  PLATFORM_WEB = 3;
+}
+
+// 第三方登录平台
+enum ThirdPartyPlatform {
+  THIRD_PARTY_PLATFORM_UNSPECIFIED = 0;
+  THIRD_PARTY_PLATFORM_GOOGLE = 1;
+  THIRD_PARTY_PLATFORM_APPLE = 2;
+  THIRD_PARTY_PLATFORM_FACEBOOK = 3;
+}
+
+// 性别(与 DB user_info.gender 取值一致:0/1/2)
+enum Gender {
+  GENDER_UNKNOWN = 0;
+  GENDER_MALE = 1;
+  GENDER_FEMALE = 2;
+}
+
+// 合规状态(proto 值从 1 开始;DB 取值见 user_info.regulation_status COMMENT)
+enum RegulationStatus {
+  REGULATION_STATUS_UNSPECIFIED = 0;
+  REGULATION_STATUS_ACTIVE = 1;
+  REGULATION_STATUS_K_GROUP = 2;
+  REGULATION_STATUS_BANNED = 3;
+  REGULATION_STATUS_ADMIN = 4;
+  REGULATION_STATUS_COLLABORATOR = 5;
+  REGULATION_STATUS_SUSPENDED = 6;
+  REGULATION_STATUS_REPORTED = 7;
+}
+
+// App 维度(运营定义;数值由 user-info-service AppName 枚举映射)
+// 业务上 0=DEFAULT 即可,但为遵守仓库 enum 规约,这里 0 占位为 UNSPECIFIED
+enum AppName {
+  APP_NAME_UNSPECIFIED = 0;
+  APP_NAME_DEFAULT = 1;
+}
+
+// 用户类型:区分数字人 / 真人
+// proto 规约首值必须为 _UNSPECIFIED = 0;业务层 + DB CHECK 约束强制 user_type ∈ {1,2}
+// 调用方(im-service MessageRouter)按 DH/BH 分流:BH→DH 走 ai-chat
+enum UserType {
+  USER_TYPE_UNSPECIFIED = 0;
+  // 数字人(Digital Human),AI persona
+  USER_TYPE_DH = 1;
+  // 真人(Bio Human)
+  USER_TYPE_BH = 2;
+}
+
+// 封禁原因(CheckBan 响应使用)
+enum BanReason {
+  BAN_REASON_UNSPECIFIED = 0;
+  // user_info.regulation_status = 3(BANNED)
+  BAN_REASON_USER_BANNED = 1;
+  // user_info.regulation_status = 6(SUSPENDED)
+  BAN_REASON_USER_SUSPENDED = 2;
+  // Redis 运营级封禁集合命中
+  BAN_REASON_OPERATIONAL = 3;
+}
+
+// =====================================================================
+// 2. UserIdentityService
+// 入参:已通过短信 / 三方授权 / 设备 ID 一次验证后的 identifier
+// 出参:userId(+ pending 标记)
+// 详见 dating-server/docs/user-info-service-design.md §5.2 §5.3
+// =====================================================================
+service UserIdentityService {
+  // 手机验证码登录后调用:解析或创建用户,更新 last_open_at
+  rpc ResolveOrCreateByPhone(ResolveOrCreateByPhoneRequest)
+      returns (ResolveOrCreateResponse);
+
+  // 三方授权登录后调用:解析或创建用户,更新 last_open_at
+  rpc ResolveOrCreateByThirdParty(ResolveOrCreateByThirdPartyRequest)
+      returns (ResolveOrCreateResponse);
+
+  // 设备 ID 快速登录:解析或创建用户,更新 last_open_at
+  rpc ResolveOrCreateByDevice(ResolveOrCreateByDeviceRequest)
+      returns (ResolveOrCreateResponse);
+
+  // 查封禁状态(gateway 登录最后一步 + 业务侧兜底)
+  rpc CheckBan(CheckBanRequest) returns (CheckBanResponse);
+}
+
+// ─── ResolveOrCreate 三种入口共享出参 ────────────────────────────────
+message ResolveOrCreateResponse {
+  int64 user_id = 1;
+  // true=刚创建的 placeholder 用户 / onboarding 未完成;false=已完整资料
+  bool pending = 2;
+  // 命中现有用户 → false;本次新建 → true(用于客户端是否跳 onboarding)
+  bool newly_created = 3;
+}
+
+// ─── 手机号登录 ──────────────────────────────────────────────────────
+message ResolveOrCreateByPhoneRequest {
+  // E.164 格式手机号(gateway 端 libphonenumber 已规范化,带 +)
+  string phone_e164 = 1;
+  AppName app_name = 2;
+}
+
+// ─── 三方授权登录 ────────────────────────────────────────────────────
+message ResolveOrCreateByThirdPartyRequest {
+  ThirdPartyPlatform platform = 1;
+  // 第三方平台返回的稳定用户 ID(Google sub / Apple sub / Facebook id)
+  string third_party_user_id = 2;
+  AppName app_name = 3;
+  // 仅 Google 登录携带;其他平台留空字符串
+  string google_email = 4;
+}
+
+// ─── 设备 ID 快速登录 ────────────────────────────────────────────────
+message ResolveOrCreateByDeviceRequest {
+  // App 上报的设备唯一标识(iOS IDFV / Android SSAID 派生)
+  string device_id = 1;
+  Platform platform = 2;
+  AppName app_name = 3;
+}
+
+// ─── 封禁查询 ────────────────────────────────────────────────────────
+message CheckBanRequest {
+  int64 user_id = 1;
+}
+
+message CheckBanResponse {
+  bool banned = 1;
+  // 封禁原因枚举,见 BanReason
+  BanReason reason = 2;
+  // 封禁时间戳(毫秒);未封禁为 0
+  int64 banned_at_ms = 3;
+  // 给用户的提示文案(多语言由网关取);未封禁为空
+  string message = 4;
+}
+
+// =====================================================================
+// 3. UserProfileService
+// 资料 + 兴趣 + 头像(三块合一,详见 dating-server/docs/user-info-service-design.md §5.2)
+// =====================================================================
+service UserProfileService {
+  // 单用户读取:默认返回主资料 + 兴趣 + 头像短期 URL
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
+
+  // 批量读取(≤200);Redis miss 后批量 DB 回填
+  rpc BatchGetProfile(BatchGetProfileRequest) returns (BatchGetProfileResponse);
+
+  // 资料编辑(动态 SET,跳过未设置字段);MVP 仅 7 个标量
+  rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
+
+  // onboarding 一次性写入完整资料 + 默认头像;gender/birthday 等定后不可改字段的唯一写入入口
+  rpc UpsertOnboarding(UpsertOnboardingRequest) returns (UpsertOnboardingResponse);
+
+  // 全量替换兴趣标签;图片标签 ≤ 9,文字标签 ≤ 50
+  rpc ReplaceUserInterests(ReplaceUserInterestsRequest)
+      returns (ReplaceUserInterestsResponse);
+
+  // 头像 presigned PUT URL 签发(5 分钟有效)
+  rpc PresignAvatarUpload(PresignAvatarUploadRequest)
+      returns (PresignAvatarUploadResponse);
+
+  // 客户端上传完调用:校验 + 更新 user_info.custom_avatar + 清缓存
+  rpc ConfirmAvatarUpload(ConfirmAvatarUploadRequest)
+      returns (ConfirmAvatarUploadResponse);
+}
+
+// ─── 用户资料 VO(GetProfile / BatchGetProfile / UpsertOnboarding 共享) ──
+message UserProfile {
+  int64 user_id = 1;
+  string nickname = 2;
+  // 年龄(SMALLINT);0 表示未填写
+  int32 age = 3;
+  Gender gender = 4;
+  // 身高(cm,SMALLINT);0 表示未填写
+  int32 height = 5;
+  string bio = 6;
+  // 职业(UI 显示 Occupation,DB 列名 profession;proto 对齐前端用 occupation)
+  string occupation = 7;
+  string education = 8;
+  // 偏好城市/地区文本(对应 DB preferred_location)
+  string location = 9;
+  // 生日字符串(yyyy-MM-dd / yyyy/MM/dd 兼容历史格式)
+  string birthday = 10;
+
+  // 自定义头像;由 service 层基于 object_key 签发的短期 GET URL 组装
+  Avatar avatar = 11;
+
+  // 兴趣标签(默认随 GetProfile 一起返回)
+  repeated UserInterest interests = 12;
+
+  // onboarding 未完成标志
+  bool pending = 13;
+  // 合规状态
+  RegulationStatus regulation_status = 14;
+  // 最近活跃时间戳(毫秒);0 表示从未活跃
+  int64 last_open_at_ms = 15;
+  // 用户类型:DH(数字人) / BH(真人);DB CHECK 强制非 0,默认 BH;im-service MessageRouter 据此分流
+  UserType user_type = 16;
+
+  // ── 召回 / 匹配维度字段(新增,服务于 match-service 的 D0/D1 召回与排序)──
+  // 注册时间戳(毫秒);0 表示未知。用于 match.score.new_bh_bonus(≤3 天内的新 BH 加权曝光)
+  int64 created_at_ms = 17;
+  // GEO 字典 city_id;关联 geo_city.id,Phase 1 "同城" 召回的权威键
+  int64 city_id = 18;
+  // 美国州缩写 CA / NY ...,展示用冗余
+  string state_code = 19;
+  // 城市名,展示用冗余
+  string city = 20;
+  // 城市中心点纬度(冗余自 geo_city.lat);Phase 2 升级 Redis GEO 后用于精确距离
+  double lat = 21;
+  // 城市中心点经度
+  double lng = 22;
+  // 颜值分 0-100;DB DEFAULT 50;由 vision-agent 异步刷新
+  int32 beauty_score = 23;
+  // 人种(Asian / Black / White / Latino / Other 等);可空(用户未填写)
+  // 用 string 而非 enum:运营随时增减分类不需要发版
+  string race = 24;
+}
+
+message Avatar {
+  // 原图短期 GET URL(默认 30 分钟有效;由 service 层签发)
+  string original_url = 1;
+  string min_url = 2;
+  string mid_url = 3;
+  // 图片宽 / 高(像素);0 表示未知
+  int32 width = 4;
+  int32 height = 5;
+  // ── object_key 字段(新增,与 *_url 并存,对齐 dating-server CLAUDE.md 「VO/gRPC 出参一律 *_key」红线)──
+  // 调用方(尤其 match-service / mobile-gateway)优先使用 *_key 拼 ${cdnBaseUrl}/${bucket}/${key}
+  // 服务端继续返回 *_url 是为了向后兼容已上线客户端
+  string original_key = 6;
+  string min_key = 7;
+  string mid_key = 8;
+}
+
+message UserInterest {
+  // 一级分类 key
+  string tab_key = 1;
+  // 标签值 key
+  string tag_key = 2;
+  // 图片标签的短期 GET URL;为空表示文字标签
+  string pic_url = 3;
+}
+
+// ─── GetProfile / BatchGetProfile ────────────────────────────────────
+message GetProfileRequest {
+  int64 target_user_id = 1;
+}
+
+message GetProfileResponse {
+  UserProfile profile = 1;
+}
+
+message BatchGetProfileRequest {
+  // 最多 200 个;超过由 service 层报 INVALID_ARGUMENT
+  repeated int64 target_user_ids = 1;
+}
+
+message BatchGetProfileResponse {
+  // 顺序与请求 target_user_ids 一致;不存在 / 已软删的 user_id 不返回
+  repeated UserProfile profiles = 1;
+}
+
+// ─── UpdateProfile(MVP 仅 7 个标量,对齐 App「Edit info」编辑页) ───────
+// 全部 optional:未设置 = 不修改;显式空串 = 清空(service 层按字段规则处理)
+message UpdateProfileRequest {
+  optional string nickname = 1;
+  optional int32 age = 2;
+  optional int32 height = 3;
+  optional string bio = 4;
+  optional string occupation = 5;
+  optional string education = 6;
+  optional string location = 7;
+}
+
+message UpdateProfileResponse {
+  bool ok = 1;
+}
+
+// ─── UpsertOnboarding(注册期一次性写入完整资料 + 默认头像) ─────────────
+// 与 UpdateProfile 的区别:gender / birthday 等定后不可改字段在这里写入
+message UpsertOnboardingRequest {
+  string nickname = 1;
+  Gender gender = 2;
+  string birthday = 3;
+  int32 age = 4;
+  int32 height = 5;
+  string bio = 6;
+  string occupation = 7;
+  string education = 8;
+  string location = 9;
+  // 默认头像的 object_key(可选;为空表示使用系统默认头像)
+  string default_avatar_object_key = 10;
+  // 用户类型:DH=数字人 / BH=真人;未传(UNSPECIFIED)= 沿用 DB DEFAULT 2(BH);admin 灌入 DH 时显式传 USER_TYPE_DH
+  UserType user_type = 11;
+}
+
+message UpsertOnboardingResponse {
+  UserProfile profile = 1;
+}
+
+// ─── ReplaceUserInterests(全量替换;事务内 DELETE + INSERT) ─────────────
+message ReplaceUserInterestsRequest {
+  // 全量列表;空列表 = 清空所有兴趣
+  repeated UserInterestInput interests = 1;
+}
+
+message UserInterestInput {
+  string tab_key = 1;
+  string tag_key = 2;
+  // 非空 = 图片标签的 MinIO object_key;空 = 文字标签
+  string pic_object_key = 3;
+}
+
+message ReplaceUserInterestsResponse {
+  bool ok = 1;
+  // 实际入库的条数(图片 + 文字)
+  int32 saved_count = 2;
+}
+
+// ─── Avatar presign / confirm ────────────────────────────────────────
+message PresignAvatarUploadRequest {
+  // 扩展名白名单:jpg / jpeg / png / webp(service 层校验)
+  string ext = 1;
+  // 客户端预估的图片大小(bytes);≤ 10MB,service 层在 presign 时限制 Content-Length
+  int64 expected_size_bytes = 2;
+}
+
+message PresignAvatarUploadResponse {
+  // MinIO presigned PUT URL,TTL 5 分钟
+  string presigned_url = 1;
+  // 即将写入 user_info.custom_avatar.originalKey 的 object_key
+  string object_key = 2;
+  // URL 过期时间(毫秒)
+  int64 expires_at_ms = 3;
+}
+
+message ConfirmAvatarUploadRequest {
+  // 必须与 PresignAvatarUpload 返回的 object_key 一致
+  string object_key = 1;
+}
+
+message ConfirmAvatarUploadResponse {
+  bool ok = 1;
+  // 更新后的头像 VO(含短期 GET URL),客户端可直接展示
+  Avatar avatar = 2;
+}
+
+// =====================================================================
+// 4. UserRecommendationService(召回服务,服务于 match-service 的 D0/D1 队列生成)
+// 详见 dating-server/docs/match-service-prd-tech.md §4.1 / §4.2 / §6.7
+//
+// 两个 RPC 设计上"无状态 + 无 user-side 缓存":每次调用即查 DB,
+// 由调用方(match-service)按需多次调用做分层(L0~L3)。
+// RPC 本身不感知层级,只负责按入参做单次过滤召回 + 排序。
+//
+// 单表无 JOIN 原则:本服务的查询不与 geo_city 等表 JOIN,
+// city_id 等关联在 service 层完成。
+// =====================================================================
+service UserRecommendationService {
+  // 召回 DH 候选(D0/D1 共用)
+  // match-service 端调用方按 L0~L3 分层多次调用,每层 limit = 240 - 已累积,累积去重直到 240
+  rpc ListDhCandidates(ListDhCandidatesRequest) returns (ListDhCandidatesResponse);
+
+  // 召回 BH 候选(D0/D1 共用)
+  // Phase 1 实现:city_id 相等(同城)过滤;radius_km 入参保留但 Phase 1 忽略,Phase 2 升级 Redis GEO 后启用
+  rpc NearbyUsers(NearbyUsersRequest) returns (NearbyUsersResponse);
+
+  // 给 match-service 用:为指定 caller 的 DH 候选生成"同 state 不同 city"的位置覆盖
+  // 业务诉求:DH 不存真实居住地;每次出卡时让 DH 的 state 跟 caller 一致、city 跟 caller 不同,
+  // 既能本地化展示又避免穿帮。本 RPC 只算覆盖值,不写库。
+  // service 层逻辑:
+  //   1) 读 caller 的 state_code / city_id;caller 未填位置 → 返回空 map(前端不渲染位置)
+  //   2) 从 geo_city 字典取该 state 下 city_id != caller.city_id 的城市列表(L1 Caffeine 缓存)
+  //   3) 对每个 dh_user_id,用 hash(dh_user_id, caller_user_id) 作 seed 从列表里确定性挑 1 个
+  //      同一 (caller, dh) 跨次稳定;不同 caller 看到同一 DH 可能在不同 city
+  rpc PickDhCitiesForCaller(PickDhCitiesForCallerRequest)
+      returns (PickDhCitiesForCallerResponse);
+}
+
+// ─── 召回返回的 Candidate VO ─────────────────────────────────────────
+// 比 UserProfile 精简:只携带召回 / 排序 / 渲染必需的字段,降低 RPC 体积
+message Candidate {
+  int64 user_id = 1;
+  string nickname = 2;
+  int32 age = 3;
+  Gender gender = 4;
+  UserType user_type = 5;
+  // 颜值分(0-100)
+  int32 beauty_score = 6;
+  // 人种,可空
+  string race = 7;
+  // 注册时间戳(毫秒);用于 new_bh_bonus 判定 3 天内新人
+  int64 created_at_ms = 8;
+  // 最近活跃时间戳(毫秒);BH 才有意义,DH 调用方忽略
+  int64 last_open_at_ms = 9;
+  // GEO 字段(BH 才有意义)
+  int64 city_id = 10;
+  string state_code = 11;
+  string city = 12;
+  double lat = 13;
+  double lng = 14;
+  // 距离 caller 的公里数;DH 固定 -1;Phase 1 BH 同城时填同城距离(0 或基于 lat/lng 算)
+  double distance_km = 15;
+  // 头像 object_key 列表(召回阶段只下发 keys,排序 + merge 完成后由 match-service 决定是否再 batchGet 拼全资料)
+  repeated string photo_keys = 16;
+  // 简介,可选(用于展示;若为空 match-service 端会再调 BatchGetProfile)
+  string bio = 17;
+}
+
+// ─── ListDhCandidates ─────────────────────────────────────────────────
+message ListDhCandidatesRequest {
+  // 目标性别(调用方按 oppositeGender(caller.gender) 反推)
+  Gender target_gender = 1;
+  // 年龄范围(闭区间)
+  int32 age_min = 2;
+  int32 age_max = 3;
+  // 颜值分范围(闭区间)
+  int32 beauty_min = 4;
+  int32 beauty_max = 5;
+  // 优先人种列表;空表示不限(L1~L3 的"放开人种"分层传空)
+  repeated string races = 6;
+  // 排除的 user_id(已 swipe / 已 seen),由调用方从 user_swipe_history 取
+  // 上限 5000;超过由 service 层报 INVALID_ARGUMENT
+  repeated int64 exclude_user_ids = 7;
+  // 召回数量上限;通常 240,但 L1~L3 取 240 - 已累积
+  int32 limit = 8;
+}
+
+message ListDhCandidatesResponse {
+  // 按 beauty_score DESC 排序;调用方负责后续 4 级字典序 / D1 打分公式
+  repeated Candidate candidates = 1;
+}
+
+// ─── NearbyUsers ──────────────────────────────────────────────────────
+// Phase 1 实现:同城(city_id 相等)严格过滤;radius_km 入参保留但忽略
+// Phase 2 升级 Redis GEO 后,改用 radius_km 精确召回
+message NearbyUsersRequest {
+  // caller 的 user_id;service 层据此查 user_info.city_id 作为同城匹配基准
+  int64 caller_user_id = 1;
+  // Phase 1 忽略;Phase 2 启用
+  int32 radius_km = 2;
+  // 年龄范围(闭区间)
+  int32 age_min = 3;
+  int32 age_max = 4;
+  // 颜值分范围(闭区间)
+  int32 beauty_min = 5;
+  int32 beauty_max = 6;
+  // 优先人种;空表示不限
+  repeated string races = 7;
+  // 最近 N 天活跃过的 BH;D1 调用传 7
+  int32 last_active_within_days = 8;
+  // 排除的 user_id
+  repeated int64 exclude_user_ids = 9;
+  // 召回数量上限;通常 240
+  int32 limit = 10;
+}
+
+message NearbyUsersResponse {
+  // 按 beauty_score DESC 排序;调用方负责后续 4 级字典序 / D1 打分公式
+  repeated Candidate candidates = 1;
+}
+
+// ─── PickDhCitiesForCaller ───────────────────────────────────────────
+message PickDhCitiesForCallerRequest {
+  // caller 自己的 user_id;service 层据此读 user_info.state_code / city_id
+  int64 caller_user_id = 1;
+  // 要生成位置覆盖的 DH user_id 列表(≤500);超过由 service 层报 INVALID_ARGUMENT
+  repeated int64 dh_user_ids = 2;
+}
+
+message PickDhCitiesForCallerResponse {
+  // key = dh_user_id;caller 未填位置时整个 map 为空(前端按"无位置"处理)
+  map<int64, DhCityOverride> overrides = 1;
+}
+
+message DhCityOverride {
+  // 美国州缩写(等于 caller.state_code,展示用)
+  string state_code = 1;
+  // 同 state 下的另一城市名(!= caller.city);从 geo_city 字典挑
+  string city = 2;
+}

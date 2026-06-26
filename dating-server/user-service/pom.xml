@@ -24,8 +24,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-cloud-alibaba.version>2023.0.3.2</spring-cloud-alibaba.version>
 
-        <!-- Proto SDK 版本(由 proto 仓库发布);破坏性升级要同步检 grpc.version -->
-        <user-proto.version>1.0.0-SNAPSHOT</user-proto.version>
+        <!-- Proto SDK 版本(workspace 自托管:youjianxin-workspace/proto/user) -->
+        <user-proto.version>0.1.0</user-proto.version>
         <!-- gRPC 版本需与 proto 仓库 user-proto 编译所用版本一致(对齐 payment-service) -->
         <grpc.version>1.68.1</grpc.version>
 
@@ -56,9 +56,9 @@
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
 
-        <!-- Proto SDK(UserIdentityService + UserProfileService stubs,由 proto 仓库发布) -->
+        <!-- Proto SDK(UserIdentityService + UserProfileService stubs;workspace 自托管 youjianxin-workspace/proto/user) -->
         <dependency>
-            <groupId>com.jianjiange.proto</groupId>
+            <groupId>com.dating.youjianxin.proto</groupId>
             <artifactId>user-proto</artifactId>
             <version>${user-proto.version}</version>
         </dependency>
