@@ -1,6 +1,6 @@
 package com.dating.post.service;
 
-import com.dating.common.proto.Pagination;
+import com.dating.youjianxin.proto.common.Pagination;
 import com.dating.post.config.SnowflakeIdGenerator;
 import com.dating.post.constant.ErrorCode;
 import com.dating.post.constant.PostStatus;
@@ -9,7 +9,7 @@ import com.dating.post.exception.BizException;
 import com.dating.post.manager.PostCommentManager;
 import com.dating.post.manager.PostManager;
 import com.dating.post.manager.PostStatManager;
-import com.dating.post.proto.CommentInfo;
+import com.dating.youjianxin.proto.post.CommentInfo;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

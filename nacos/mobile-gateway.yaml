@@ -1,0 +1,33 @@
+# Nacos 配置:mobile-gateway
+#
+# Data ID:    mobile-gateway.yaml(= spring.application.name + .yaml)
+# Group:      DEFAULT_GROUP
+# Namespace:  youjianxin-dating-dev
+#
+# 包含**共享 dev 凭据真值**(CLAUDE.md 红线 #1 例外条款),生产环境必须另起 namespace + 改占位。
+
+spring:
+  # ---- PostgreSQL(共用 youjianxin-dating-dev 库)----
+  datasource:
+    url: jdbc:postgresql://38.76.188.242:5433/youjianxin-dating-dev?stringtype=unspecified
+    username: jianjian_test
+    password: MpR5rGjss2Ly6vJFAhaxAwNqVAGVoP7V
+
+  # ---- Redis(共用 youjianxin-dating-dev:* 前缀,db=1)----
+  data:
+    redis:
+      host: 38.76.188.242
+      port: 6380
+      password: sNuP9gZScsj88QbEyTujffOvRCCH9Kv1
+      database: 1
+
+# ---- Gateway 业务配置 ----
+# JWT keypair 学员阶段先空着,实际签发 token 时再生成 RS256:
+#   openssl genrsa -out priv.pem 2048
+#   openssl rsa -in priv.pem -pubout -out pub.pem
+#   base64 -i priv.pem 和 base64 -i pub.pem 填进去
+# Google OAuth 用 application.yml 里的默认 client_ids 即可
+# gateway:
+#   jwt:
+#     private-key-base64: ''
+#     public-key-base64: ''

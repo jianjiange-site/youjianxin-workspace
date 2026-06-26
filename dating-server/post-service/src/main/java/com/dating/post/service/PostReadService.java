@@ -1,7 +1,7 @@
 package com.dating.post.service;
 
-import com.dating.common.proto.BaseResponse;
-import com.dating.common.proto.Pagination;
+import com.dating.youjianxin.proto.common.BaseResponse;
+import com.dating.youjianxin.proto.common.Pagination;
 import com.dating.post.entity.Post;
 import com.dating.post.entity.PostImage;
 import com.dating.post.exception.BizException;
@@ -9,7 +9,7 @@ import com.dating.post.manager.PostCommentManager;
 import com.dating.post.manager.PostLikeManager;
 import com.dating.post.manager.PostManager;
 import com.dating.post.manager.PostStatManager;
-import com.dating.post.proto.PostInfo;
+import com.dating.youjianxin.proto.post.PostInfo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -139,7 +139,7 @@ public class PostReadService {
                         ? ""
                         : post.getCreatedAt().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
         for (PostImage img : images) {
-            builder.addImages(com.dating.post.proto.PostImage.newBuilder()
+            builder.addImages(com.dating.youjianxin.proto.post.PostImage.newBuilder()
                     .setSortOrder(img.getSortOrder())
                     .setImageKey(img.getImageKey())
                     .build());

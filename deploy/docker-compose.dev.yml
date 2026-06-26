@@ -84,3 +84,24 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  mobile-gateway:
+    container_name: youjianxin-dating-dev-mobile-gateway
+    build:
+      context: ../dating-server/mobile-gateway
+      dockerfile: Dockerfile
+    image: youjianxin-dating-dev-mobile-gateway:dev
+    restart: unless-stopped
+    env_file:
+      - .env.deploy
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      TZ: UTC
+    ports:
+      - "38080:8080"   # 公网入口(BFF REST),错开其他服务
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s

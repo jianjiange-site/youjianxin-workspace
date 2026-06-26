@@ -1,0 +1,160 @@
+server:
+  port: 8080
+  shutdown: graceful
+
+spring:
+  application:
+    name: mobile-gateway
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  threads:
+    virtual:
+      enabled: true
+
+  config:
+    import:
+      - optional:nacos:${spring.application.name}.yaml
+      - optional:nacos:${spring.application.name}-${spring.profiles.active}.yaml
+
+  cloud:
+    nacos:
+      server-addr: ${NACOS_ADDR:38.76.188.242:8848}
+      username: ${NACOS_USER:nacos}
+      password: ${NACOS_PASSWORD:}
+      config:
+        namespace: ${NACOS_NAMESPACE:youjianxin-dating-dev}
+        group: DEFAULT_GROUP
+        file-extension: yaml
+        refresh-enabled: true
+      discovery:
+        namespace: ${NACOS_NAMESPACE:youjianxin-dating-dev}
+        group: DEFAULT_GROUP
+        register-enabled: true
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:dating_chat}
+    username: ${DB_USER:dating}
+    password: ${DB_PASSWORD:dating}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 16
+      minimum-idle: 2
+      connection-timeout: 10000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
+    validate-on-migrate: true
+    # 与 payment-service / user-service 共用 dating_chat 库,各自走独立 Flyway 历史表避免 V1 撞 checksum
+    table: flyway_history_gateway
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3000ms
+      connect-timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+          max-wait: 2000ms
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.dating.mobilegateway.entity
+  global-config:
+    banner: false
+    db-config:
+      id-type: auto
+      table-underline: true
+      logic-delete-field: deleted
+      logic-not-delete-value: 'false'
+      logic-delete-value: 'true'
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+# gRPC 客户端:寻址在 G4 配 discovery:///user-service (Nacos NameResolver)
+# 这里仅留 placeholder,G4 真正配 channel
+grpc:
+  client:
+    user-service:
+      address: discovery:///user-service
+      negotiation-type: plaintext
+    im-service:
+      address: discovery:///im-service
+      negotiation-type: plaintext
+    payment-service:
+      address: discovery:///payment-service
+      negotiation-type: plaintext
+    post-service:
+      address: discovery:///post-service
+      negotiation-type: plaintext
+
+# JWT 密钥(PEM 字符串经 base64 编码后注入,占位仅供 local 启动通过校验)。
+# 真实公私钥走 Nacos Config,不入仓。
+gateway:
+  jwt:
+    issuer: dating-mobile-gateway
+    access-ttl-minutes: 15
+    refresh-ttl-days: 7
+    public-key-base64: ${JWT_PUBLIC_KEY_BASE64:}
+    private-key-base64: ${JWT_PRIVATE_KEY_BASE64:}
+  sms:
+    # 占位短信:false=不调真渠道,mockCode 写日志 + 接口回吐(联调用)
+    enabled: ${GATEWAY_SMS_ENABLED:false}
+  third-party:
+    # 三方 OAuth:true=Google 走真校验 (GoogleIdTokenVerifier 验签+iss+aud+exp),Apple/Facebook 仍 NOT_IMPLEMENTED
+    # false=token hash mock 出 thirdPartyUserId (本地联调用)。env GATEWAY_THIRD_PARTY_ENABLED 可覆写。
+    enabled: ${GATEWAY_THIRD_PARTY_ENABLED:true}
+    google:
+      # Google OAuth Client ID 白名单 (audience),逗号分隔多个。Client ID 是公开值 (会打进 App 包),
+      # 不算 secret;dev/prod 共用同一个 Web Client ID(用户决策)。Nacos 可按环境覆写。
+      client-ids: ${GOOGLE_CLIENT_IDS:480590638337-h3ljqfvd67v9dcl0rpj6s6bkq4direhu.apps.googleusercontent.com}
+  rate-limit:
+    auth:
+      limit-per-second: ${GATEWAY_AUTH_RATE_LIMIT_PER_SEC:10}
+      refresh-period-ms: ${GATEWAY_AUTH_RATE_LIMIT_PERIOD_MS:1000}
+  callback:
+    ip-whitelist: ${CALLBACK_IP_WHITELIST:127.0.0.1}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    # 不覆盖 path —— 用 SpringDoc 默认 /swagger-ui.html;
+    # 之前设成 /swagger-ui/index.html 会让入口跳到 /swagger-ui/swagger-ui/index.html 双前缀死循环。
+    operations-sorter: alpha
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
+logging:
+  level:
+    root: INFO
+    com.dating.mobilegateway: DEBUG
+    com.dating.mobilegateway.mapper: DEBUG
+    org.flywaydb: INFO

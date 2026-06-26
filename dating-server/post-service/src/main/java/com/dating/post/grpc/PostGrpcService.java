@@ -1,26 +1,26 @@
 package com.dating.post.grpc;
 
 import com.dating.post.exception.BizException;
-import com.dating.post.proto.ActionLikeRequest;
-import com.dating.post.proto.ActionLikeResponse;
-import com.dating.post.proto.CreateCommentRequest;
-import com.dating.post.proto.CreateCommentResponse;
-import com.dating.post.proto.CreatePostRequest;
-import com.dating.post.proto.CreatePostResponse;
-import com.dating.post.proto.DeleteCommentRequest;
-import com.dating.post.proto.DeleteCommentResponse;
-import com.dating.post.proto.DeletePostRequest;
-import com.dating.post.proto.DeletePostResponse;
-import com.dating.post.proto.GetPostDetailRequest;
-import com.dating.post.proto.GetPostDetailResponse;
-import com.dating.post.proto.GetRecommendFeedRequest;
-import com.dating.post.proto.GetRecommendFeedResponse;
-import com.dating.post.proto.LikeAction;
-import com.dating.post.proto.ListCommentsRequest;
-import com.dating.post.proto.ListCommentsResponse;
-import com.dating.post.proto.ListUserPostsRequest;
-import com.dating.post.proto.ListUserPostsResponse;
-import com.dating.post.proto.PostServiceGrpc;
+import com.dating.youjianxin.proto.post.ActionLikeRequest;
+import com.dating.youjianxin.proto.post.ActionLikeResponse;
+import com.dating.youjianxin.proto.post.CreateCommentRequest;
+import com.dating.youjianxin.proto.post.CreateCommentResponse;
+import com.dating.youjianxin.proto.post.CreatePostRequest;
+import com.dating.youjianxin.proto.post.CreatePostResponse;
+import com.dating.youjianxin.proto.post.DeleteCommentRequest;
+import com.dating.youjianxin.proto.post.DeleteCommentResponse;
+import com.dating.youjianxin.proto.post.DeletePostRequest;
+import com.dating.youjianxin.proto.post.DeletePostResponse;
+import com.dating.youjianxin.proto.post.GetPostDetailRequest;
+import com.dating.youjianxin.proto.post.GetPostDetailResponse;
+import com.dating.youjianxin.proto.post.GetRecommendFeedRequest;
+import com.dating.youjianxin.proto.post.GetRecommendFeedResponse;
+import com.dating.youjianxin.proto.post.LikeAction;
+import com.dating.youjianxin.proto.post.ListCommentsRequest;
+import com.dating.youjianxin.proto.post.ListCommentsResponse;
+import com.dating.youjianxin.proto.post.ListUserPostsRequest;
+import com.dating.youjianxin.proto.post.ListUserPostsResponse;
+import com.dating.youjianxin.proto.post.PostServiceGrpc;
 import com.dating.post.service.CommentService;
 import com.dating.post.service.FeedService;
 import com.dating.post.service.LikeService;
@@ -193,7 +193,7 @@ public class PostGrpcService extends PostServiceGrpc.PostServiceImplBase {
      */
     private <T> void respond(StreamObserver<T> obs,
                              Supplier<T> action,
-                             java.util.function.Function<com.dating.common.proto.BaseResponse, T> errorBuilder) {
+                             java.util.function.Function<com.dating.youjianxin.proto.common.BaseResponse, T> errorBuilder) {
         T result;
         try {
             result = action.get();

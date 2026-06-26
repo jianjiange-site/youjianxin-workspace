@@ -1,6 +1,6 @@
 package com.dating.post.grpc;
 
-import com.dating.common.proto.BaseResponse;
+import com.dating.youjianxin.proto.common.BaseResponse;
 import com.dating.post.constant.ErrorCode;
 import com.dating.post.exception.BizException;
 

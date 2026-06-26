@@ -1,6 +1,6 @@
 package com.dating.post.service;
 
-import com.dating.common.proto.Pagination;
+import com.dating.youjianxin.proto.common.Pagination;
 import com.dating.post.client.UserClient;
 import com.dating.post.config.CacheKeyConfig;
 import com.dating.post.constant.RedisKeys;
@@ -8,7 +8,7 @@ import com.dating.post.entity.Post;
 import com.dating.post.entity.PostStat;
 import com.dating.post.manager.PostManager;
 import com.dating.post.manager.PostStatManager;
-import com.dating.post.proto.PostInfo;
+import com.dating.youjianxin.proto.post.PostInfo;
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.RBloomFilter;
 import org.redisson.api.RedissonClient;
