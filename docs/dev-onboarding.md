@@ -380,7 +380,13 @@ curl -X POST https://nexus-mind.chatvibe.me/chat/account/login \
 
 需要 OpenIM **admin secret**（能管理所有用户，权限很大）。流程：后端 `POST /api/auth/get_admin_token`（用 secret）→ `POST /api/user/user_register` 建用户 → `POST /api/auth/get_user_token` 给用户签 token。
 
-> admin secret 是共享环境的高权限密钥，**不在本文公开——找管理员单独要**，只放在你的后端、绝不进客户端 / git。
+> admin secret 是共享环境的高权限密钥，只放在后端（gitignored 的 `deploy/.env.deploy`），别打进客户端。共享 dev 凭据（按红线 #1 例外）：
+>
+> | 项 | 值 |
+> |---|---|
+> | OpenIM 后端 API base（管理态） | `https://openim-admin.chatvibe.me/api` |
+> | `OPENIM_ADMIN_USER_ID` | `imAdmin` |
+> | `OPENIM_ADMIN_SECRET` | `c49af41e5a17a9818c26fed0bbb6846e36e288d6000fe28f` |
 
 ### 7.4 管理后台
 
@@ -388,7 +394,14 @@ curl -X POST https://nexus-mind.chatvibe.me/chat/account/login \
 
 ### 7.5 音视频（LiveKit）
 
-1v1 语音 / 视频走 SDK 的通话 API 即可，**LiveKit 地址和通话 token 由 OpenIM 服务端下发，客户端不用自己配 LiveKit、也不用持 LiveKit 密钥**。浏览器端首次通话会弹麦克风 / 摄像头授权。
+1v1 语音 / 视频走 SDK 的通话 API 即可，客户端通常**不持 LiveKit 密钥**（地址和通话 token 由 OpenIM 服务端下发）。浏览器端首次通话会弹麦克风 / 摄像头授权。
+
+后端若要自行签 LiveKit token，共享 dev 密钥（按红线 #1 例外）：
+
+| 项 | 值 |
+|---|---|
+| `LIVEKIT_API_KEY` | `APIV4yfSfQZRZV5z6XaxmQvHUNbhB1cOAYS8PAMLX5N` |
+| `LIVEKIT_SECRET_KEY` | `AjONrVXYHqT3BtctDvyCZCLCOJxdsURRfeMlQUUw` |
 
 ### 7.6 多人隔离
 
@@ -457,8 +470,8 @@ proto 不进业务源码树，统一发到共享 Nexus（`https://nexus.jianjian
   <servers>
     <server>
       <id>nexus</id>
-      <username>NEXUS_USER</username>
-      <password>NEXUS_PASS</password>
+      <username>admin</username>
+      <password>jianjiange</password>
     </server>
   </servers>
 </settings>

@@ -85,6 +85,9 @@ services:
       retries: 5
       start_period: 30s
 
+  # mobile-gateway:公网入口 BFF(REST → 各 service gRPC)。
+  # 已对齐 workspace 简化版 post-proto(PostClient/PostServiceImpl 改用 images/like_count/
+  # liked + x-user-id metadata,不再用 reference 的 base/stat/success)。
   mobile-gateway:
     container_name: youjianxin-dating-dev-mobile-gateway
     build:
@@ -105,3 +108,95 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  # ai-chat:Python LangChain/LangGraph 聊天+视觉 gRPC(单进程 ChatAgent + VisionAgent)。
+  # 不读 Nacos 配置,全靠 env;LLM key 为空也能启动,仅实际 Chat/Vision 调用时才需要。
+  ai-chat:
+    container_name: youjianxin-dating-dev-ai-chat
+    build:
+      context: ../ai-chat
+      dockerfile: Dockerfile
+    image: youjianxin-dating-dev-ai-chat:dev
+    restart: unless-stopped
+    env_file:
+      - .env.deploy
+    environment:
+      ENV: dev
+      TZ: Etc/UTC
+      GRPC_LISTEN_ADDR: "[::]:50051"
+      # PG checkpointer(共用 youjianxin-dating-dev 库;密码走 .env.deploy)
+      PG_HOST: 38.76.188.242
+      PG_PORT: "5433"
+      PG_DB: youjianxin-dating-dev
+      PG_USER: jianjian_test
+      # Nacos 注册 + 发现 user-service(密码走 .env.deploy NACOS_PASSWORD)
+      NACOS_SERVER_ADDR: 38.76.188.242:8848
+      NACOS_NAMESPACE: youjianxin-dating-dev
+      NACOS_USERNAME: nacos
+      NACOS_SERVICE_NAME: ai-chat
+      # Nacos 不可用时的静态兜底(正常走 discovery:///user-service 的 gRPC 9090)
+      USER_SERVICE_ADDR: user-service:9090
+    ports:
+      - "50051:50051"   # gRPC
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 50051), 3).close()"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  # payment-service:金币 / 订单 / 订阅(PG + Flyway;PayPal 留空禁用,不阻塞启动)
+  payment-service:
+    container_name: youjianxin-dating-dev-payment-service
+    build:
+      context: ../dating-server/payment-service
+      dockerfile: Dockerfile
+    image: youjianxin-dating-dev-payment-service:dev
+    restart: unless-stopped
+    env_file:
+      - .env.deploy
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      TZ: UTC
+      POSTGRES_JDBC_URL: jdbc:postgresql://38.76.188.242:5433/youjianxin-dating-dev?stringtype=unspecified
+      POSTGRES_USER: jianjian_test
+      # POSTGRES_PASSWORD / NACOS_PASSWORD 走 .env.deploy
+    ports:
+      - "41080:8080"   # REST
+      - "41090:9090"   # gRPC
+
+  # im-service:消息路由 / 在线状态 / DH typing(PG via JPA + Redis presence;调 ai-chat/user/payment gRPC)
+  # OpenIM / LiveKit 密钥留空也能启动,实际收发 IM 时才需要(见 dev-onboarding §7)
+  im-service:
+    container_name: youjianxin-dating-dev-im-service
+    build:
+      context: ../dating-server/im-service
+      dockerfile: Dockerfile
+    image: youjianxin-dating-dev-im-service:dev
+    restart: unless-stopped
+    env_file:
+      - .env.deploy
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      TZ: UTC
+      # PG(JPA ddl-auto 自动建 im 表;密码走 .env.deploy DB_PASSWORD)
+      DB_HOST: 38.76.188.242
+      DB_PORT: "5433"
+      DB_NAME: youjianxin-dating-dev
+      DB_USER: jianjian_test
+      # Redis presence(db1;host/port/db/password 由 .env.deploy 的 SPRING_DATA_REDIS_* 兜底)
+      REDIS_HOST: 38.76.188.242
+      REDIS_PORT: "6380"
+      REDIS_DATABASE: "1"
+      # OpenIM(admin-secret 走 .env.deploy;见 dev-onboarding §7)
+      OPENIM_API_URL: https://openim-admin.chatvibe.me/api
+    ports:
+      - "42080:18080"   # REST/actuator
+      - "42081:18081"   # gRPC
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:18080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+

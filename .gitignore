@@ -6,6 +6,15 @@
 # Maven
 target/
 
+# Python (ai-chat 模块)
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
 # macOS
 .DS_Store
 

@@ -38,3 +38,6 @@ dating:
   bizid:
     # 1=测试 / 2=生产,影响业务主键 envPrefix。dev 环境用 1
     env-prefix: 1
+  alert:
+    # dating-common 自带企微 alert,学员阶段没配 corp-id,先关掉避免启动失败
+    enabled: false
